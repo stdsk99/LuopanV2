@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ผังพลังประจำปี - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.21-7";</script>
+    <script src="js/version-check.js?v=2026.10.21-7"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Noto Serif CJK TC', 'Songti TC', serif; }
+        svg text { font-family: 'Prompt', sans-serif; }
+        .seg { display: inline-flex; border: 1px solid #334155; border-radius: 10px; overflow: hidden; }
+        .seg button { font-size: 12px; padding: 5px 9px; background: #1e293b; color: #cbd5e1; border-right: 1px solid #334155; }
+        .seg button:last-child { border-right: 0; }
+        .seg button[aria-pressed="true"] { background: #eab308; color: #111827; font-weight: 600; }
+        button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+<header class="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-2">
+    <a href="index.html" class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+    <h1 class="text-lg font-bold text-yellow-400">🗓️ ผังพลังประจำปี</h1>
+    <div id="chips" class="flex flex-wrap gap-1.5 md:ml-auto text-[12px]"></div>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto p-3 md:p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4">
+  <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+    <div class="flex flex-wrap items-center gap-2 mb-2 text-[12px]">
+      <span class="text-slate-400">ปี</span>
+      <button type="button" id="prevY" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700" aria-label="ปีก่อน">◀</button>
+      <b id="yLabel" class="text-yellow-300"></b>
+      <button type="button" id="nextY" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700" aria-label="ปีหน้า">▶</button>
+      <button type="button" id="nowY" class="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-sky-300">ปีนี้</button>
+      <span class="ml-auto text-slate-400">ด้านบน</span>
+      <span id="topSeg" class="seg"><button type="button" data-v="N" aria-pressed="true">เหนือ</button><button type="button" data-v="S" aria-pressed="false">ใต้</button><button type="button" data-v="C" aria-pressed="false">หมุนตามเข็มทิศ</button></span>
+    </div>
+    <p id="hint" hidden class="text-[12px] text-sky-200 bg-sky-950/40 border border-sky-800/60 rounded-lg px-3 py-1.5 mb-2"></p>
+    <svg id="wheel" role="img" aria-label="ผังพลังประจำปี 8 ทิศ" viewBox="-300 -300 600 600" class="w-full max-w-[580px] mx-auto block"></svg>
+    <div class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2 text-[11px] text-slate-300">
+      <span><span class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#f97316"></span> ทิศอสูร (三煞)</span>
+      <span><span class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#a855f7"></span> ไท้ส่วย (太歲)</span>
+      <span><span class="inline-block w-3 h-3 rounded-sm align-middle" style="background:#dc2626"></span> ทิศแตก/ชง (歲破)</span>
+      <span>กรอบเขียว = ดาวดี · กรอบแดง = ดาวร้าย · ภาพในช่อง = ของเสริม/แก้ของทิศนั้น</span>
+    </div>
+  </section>
+  <section class="space-y-3">
+    <div id="summary" class="bg-slate-900 border border-slate-800 rounded-2xl p-3"></div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <h2 class="text-[14px] font-semibold text-sky-300 mb-2">📋 ทิศต่อทิศ <span class="text-slate-400 font-normal text-[12px]">เรียงจากดีไปร้าย</span></h2>
+      <div id="list" class="space-y-2"></div>
+      <p class="text-[10px] text-slate-500 mt-3">ตำแหน่งดาวคำนวณจากสูตรเดียวกับ APK หล่อแก (ดาวปี = (2000 − ปี) mod 9 เปลี่ยนปีที่ 立春) · ทิศอสูร/ทิศแตกใช้เกณฑ์เดียวกับโหมด "ทิศร้ายกาลเวลา"</p>
+    </div>
+  </section>
+</main>
+
+    <script src="js/data.js?v=2026.10.21-7"></script>
+    <script src="js/calc.js?v=2026.10.21-7"></script>
+    <script src="js/fs-core.js?v=2026.10.21-7"></script>
+    <script src="js/annual.js?v=2026.10.21-7"></script>
+</body>
+</html>
