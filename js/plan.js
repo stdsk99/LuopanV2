@@ -162,7 +162,7 @@ let tool = null, tmpCorner = null, drag = null, imgEl = null, cssW = 600, cssH =
 function setHint(text, kind) {
     const h = $('hint');
     // แสดงเสมอ เพื่อไม่ให้แปลนเลื่อนตำแหน่งระหว่างแตะ
-    h.textContent = text || 'แตะช่องเพื่อดูสรุปห้องนั้น · ลากจุดสีทองที่มุมเพื่อปรับกรอบตัวบ้าน';
+    h.textContent = text || 'แตะช่องเพื่อดูสรุปห้อง · ลากจุดสีทองที่มุมหรือขอบเพื่อปรับกรอบตัวบ้าน';
     h.className = 'text-[12px] min-h-[40px] flex items-center rounded-lg px-3 py-2 mb-2 border ' + (kind === 'warn' ? 'text-amber-200 bg-amber-950/40 border-amber-800/60' : 'text-sky-200 bg-sky-950/40 border-sky-800/60');
 }
 function defaultHint() {
@@ -240,7 +240,16 @@ function draw() {
 
     // กรอบตัวบ้าน + จุดจับมุม
     ctx.save(); ctx.setLineDash([9, 6]); ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3; ctx.strokeRect(R.x0, R.y0, R.w, R.h); ctx.restore();
-    if (fl.rect) [[R.x0, R.y0], [R.x1, R.y1]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = '#ca8a04'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    if (fl.rect) {
+        // จุดจับ 4 มุม (วงกลม) และกลางขอบ 4 ด้าน (แท่ง) ลากได้ทุกจุด
+        [[R.x0, R.y0], [R.x1, R.y0], [R.x0, R.y1], [R.x1, R.y1]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fillStyle = '#ca8a04'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+        const mx = (R.x0 + R.x1) / 2, my = (R.y0 + R.y1) / 2;
+        [[mx, R.y0, 26, 8], [mx, R.y1, 26, 8], [R.x0, my, 8, 26], [R.x1, my, 8, 26]].forEach(([x, y, w, hh]) => { ctx.fillStyle = '#ca8a04'; roundRect(x - w / 2, y - hh / 2, w, hh, 4); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    }
+    if (selCell >= 0 && plan.mode === 'grid') {
+        const cw2 = R.w / 3, ch2 = R.h / 3, sx = R.x0 + (selCell % 3) * cw2, sy = R.y0 + Math.floor(selCell / 3) * ch2;
+        ctx.save(); ctx.lineWidth = 4; ctx.strokeStyle = '#facc15'; ctx.strokeRect(sx + 3, sy + 3, cw2 - 6, ch2 - 6); ctx.restore();
+    }
     if (tmpCorner) { ctx.beginPath(); ctx.arc(tmpCorner[0] * cssW, tmpCorner[1] * cssH, 8, 0, Math.PI * 2); ctx.fillStyle = '#ca8a04'; ctx.fill(); }
 
     // ป้ายหน้าบ้าน/หลังบ้าน ตามด้านที่เลือก
@@ -252,6 +261,7 @@ function draw() {
         pill(`坐 หลังบ้าน ${houseNorm360(house.facing + 180).toFixed(1)}° ${sM}`, pos[(front + 2) % 4], '#2563eb', front % 2 === 1);
     }
     renderRooms(cells);
+    if (selCell >= 0) showCellInfo();
 }
 function pill(text, [x, y], color, vertical) {
     ctx.save(); ctx.translate(Math.min(Math.max(x, 14), cssW - 14), Math.min(Math.max(y, 12), cssH - 12));
@@ -390,12 +400,29 @@ function cellAt(nx, ny) {
     if (x < R.x0 || x > R.x1 || y < R.y0 || y > R.y1) return -1;
     return Math.min(2, Math.floor((y - R.y0) / (R.h / 3))) * 3 + Math.min(2, Math.floor((x - R.x0) / (R.w / 3)));
 }
+// จุดจับกรอบตัวบ้าน: มุมทั้ง 4 และขอบทั้ง 4 (นิ้วได้ระยะจับกว้างกว่าเมาส์)
+function grabAt(nx, ny, touch) {
+    if (!floor().rect) return null;
+    const R = rectPx(), x = nx * cssW, y = ny * cssH, rc = touch ? 30 : 16, re = touch ? 20 : 10;
+    const corners = { nw: [R.x0, R.y0], ne: [R.x1, R.y0], sw: [R.x0, R.y1], se: [R.x1, R.y1] };
+    let best = null, bd = rc;
+    for (const k in corners) { const d = Math.hypot(x - corners[k][0], y - corners[k][1]); if (d < bd) { bd = d; best = k; } }
+    if (best) return best;
+    const inX = x > R.x0 && x < R.x1, inY = y > R.y0 && y < R.y1;
+    if (inX && Math.abs(y - R.y0) < re) return 'n';
+    if (inX && Math.abs(y - R.y1) < re) return 's';
+    if (inY && Math.abs(x - R.x0) < re) return 'w';
+    if (inY && Math.abs(x - R.x1) < re) return 'e';
+    return null;
+}
+const GRAB_CURSOR = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+let down = null;   // จุดที่แตะลง (ใช้แยก "แตะ" กับ "ลาก")
+let selCell = -1;  // ช่องที่เลือกอยู่ (ไฮไลต์บนแปลน ไม่เลื่อนหน้าจอเอง)
 cv.addEventListener('pointerdown', (e) => {
-    const [nx, ny] = ptr(e), fl = floor();
-    if (fl.rect && tool !== 'corners') { // จับมุมกรอบ
-        const R = rectPx(), near = (x, y) => Math.hypot(nx * cssW - x, ny * cssH - y) < 22;
-        if (near(R.x0, R.y0)) { drag = 'a'; cv.setPointerCapture(e.pointerId); return; }
-        if (near(R.x1, R.y1)) { drag = 'b'; cv.setPointerCapture(e.pointerId); return; }
+    const [nx, ny] = ptr(e), fl = floor(), touch = e.pointerType !== 'mouse';
+    if (tool !== 'corners') {
+        const gk = grabAt(nx, ny, touch);
+        if (gk) { drag = gk; cv.setPointerCapture(e.pointerId); return; }
     }
     if (tool === 'corners') {
         if (!tmpCorner) { tmpCorner = [nx, ny]; defaultHint(); draw(); return; }
@@ -403,32 +430,62 @@ cv.addEventListener('pointerdown', (e) => {
         fl.rect = { x0: Math.min(tmpCorner[0], nx), y0: Math.min(tmpCorner[1], ny), x1: Math.max(tmpCorner[0], nx), y1: Math.max(tmpCorner[1], ny) };
         tmpCorner = null; planSave(); setTool('corners'); return;
     }
-    const g = cellAt(nx, ny);
-    if (g < 0) return;
+    down = { x: e.clientX, y: e.clientY, nx, ny };
+});
+cv.addEventListener('pointermove', (e) => {
+    if (!drag) {
+        if (e.pointerType === 'mouse') { const [nx, ny] = ptr(e), gk = tool !== 'corners' && grabAt(nx, ny, false); cv.style.cursor = gk ? GRAB_CURSOR[gk] : 'crosshair'; }
+        return;
+    }
+    const [nx, ny] = ptr(e).map(v => Math.min(1, Math.max(0, v))), r = floor().rect, m = 0.05;
+    if (drag.includes('n')) r.y0 = Math.min(ny, r.y1 - m);
+    if (drag.includes('s')) r.y1 = Math.max(ny, r.y0 + m);
+    if (drag.includes('w')) r.x0 = Math.min(nx, r.x1 - m);
+    if (drag.includes('e')) r.x1 = Math.max(nx, r.x0 + m);
+    draw();
+});
+const endDrag = (e) => {
+    if (drag) { drag = null; planSave(); return; }
+    if (!down || e.type === 'pointercancel') { down = null; return; }
+    // นับเป็น "แตะ" เมื่อนิ้วขยับไม่เกิน 10px เท่านั้น
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), d = down; down = null;
+    if (moved > 10) return;
+    const fl = floor(), g = cellAt(d.nx, d.ny);
+    if (g < 0) { selCell = -1; showCellInfo(); draw(); return; }
     if (tool === 'missing') {
         if (g === 4) { setHint('กลางบ้านเป็นมุมขาดไม่ได้', 'warn'); return; }
         fl.missing = fl.missing.includes(g) ? fl.missing.filter(x => x !== g) : fl.missing.concat(g);
         planSave(); draw(); return;
     }
-    const card = $('room-' + g);
-    if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200);
-        if (tool === 'name') { const inp = card.querySelector('input'); if (inp) setTimeout(() => inp.focus(), 250); }
-    }
-});
-cv.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const [nx, ny] = ptr(e).map(v => Math.min(1, Math.max(0, v))), r = floor().rect;
-    if (drag === 'a') { r.x0 = Math.min(nx, r.x1 - 0.05); r.y0 = Math.min(ny, r.y1 - 0.05); }
-    else { r.x1 = Math.max(nx, r.x0 + 0.05); r.y1 = Math.max(ny, r.y0 + 0.05); }
-    draw();
-});
-const endDrag = () => { if (drag) { drag = null; planSave(); } };
+    if (tool === 'name') { goToCard(g, true); return; }
+    // แตะช่องปกติ: เลือกช่องและแสดงสรุปสั้นใต้แปลน ไม่เลื่อนหน้าจอเอง
+    selCell = selCell === g ? -1 : g;
+    showCellInfo(); draw();
+};
 cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+function goToCard(g, focusName) {
+    const card = $('room-' + g); if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1200);
+    if (focusName) { const inp = card.querySelector('input'); if (inp) setTimeout(() => inp.focus(), 300); }
+}
+// สรุปสั้นของช่องที่เลือก ใต้แปลน พร้อมปุ่มไปดูรายละเอียด
+function showCellInfo() {
+    const box = $('cellInfo');
+    if (selCell < 0 || !calcNow.chart) { box.hidden = true; return; }
+    const c = analyzeCell(selCell);
+    const head = c.pal === 'C' ? 'กลางบ้าน' : `${c.code} ${DIR_SHORT[c.code]}`;
+    const st = c.st && !c.missing ? ` · ภูเขา ${c.st.m} น้ำ ${c.st.f}` : '';
+    box.innerHTML = `<div class="min-w-0 flex-1"><b>${c.name || head}</b>${c.name ? ` <span class="text-slate-400">${head}</span>` : ''}${st} · <span class="${c.verdict === 'good' ? 'text-emerald-300' : c.verdict === 'bad' ? 'text-red-300' : 'text-amber-200'}">${c.label}</span>
+        <div class="text-[11px] text-slate-400 truncate">${c.pair ? c.pair.t + ': ' + c.pair.text : c.notes[0] || ''}</div></div>
+        <button type="button" id="cellGo" class="tool shrink-0">ดูรายละเอียด ↓</button>`;
+    box.hidden = false;
+    $('cellGo').addEventListener('click', () => goToCard(selCell, false));
+}
 
 // ---------- รูปแปลน ----------
 function loadFloorImage() {
+    selCell = -1; if ($('cellInfo')) $('cellInfo').hidden = true;
     const fl = floor();
     if (!fl.img) { imgEl = null; draw(); return; }
     imgEl = new Image(); imgEl.onload = draw; imgEl.src = fl.img;
