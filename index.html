@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Luopan 3D Pro - Advanced Feng Shui Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        html, body { height: 100%; }
+        body { font-family: 'Prompt', sans-serif; background-color: #020617; color: white; overflow: hidden; touch-action: none; margin: 0; padding: 0; }
+        /* ใช้ 100dvh เพื่อไม่ให้แถบที่อยู่ของเบราว์เซอร์มือถือบังจอ (เบราว์เซอร์เก่าใช้ 100vh) */
+        #canvas3dContainer { width: 100%; height: 100vh; height: 100dvh; position: absolute; top: 0; left: 0; z-index: 1; }
+        #uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh; z-index: 10; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        .glass-panel { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .layer-btn.active { background: rgba(30, 41, 59, 0.9); border-color: #d4af37; color: #fde047; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
+        input[type="range"] { accent-color: #d4af37; }
+        
+        #sidebar {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(-100%);
+            opacity: 0;
+            box-shadow: none;
+        }
+        #sidebar.open {
+            transform: translateX(0);
+            opacity: 1;
+            box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+        }
+
+        #videoBackground {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh;
+            object-fit: cover; z-index: 0; display: none;
+        }
+
+        /* ===== Responsive layout =====
+           JS (layoutUI) คำนวณขนาดจานให้พอดีจอ แล้วส่งค่ามาเป็นตัวแปร CSS:
+           --deg-bottom : ระยะจากขอบล่างถึงขอบบนของจาน (กล่ององศาวางชิดเหนือจาน)
+           --side-w     : ความกว้างช่องว่างข้างจาน (ใช้ในจอแนวนอน)
+           --side-top   : ตำแหน่งใต้ปุ่มลอย (ใช้ในจอแนวนอน) */
+        #fabLeft, #fabRight { top: calc(clamp(60px, 8vh, 100px) + env(safe-area-inset-top, 0px)); }
+        #fabLeft { left: max(clamp(16px, 4vw, 32px), env(safe-area-inset-left, 0px)); }
+        #fabRight { right: max(clamp(16px, 4vw, 32px), env(safe-area-inset-right, 0px)); }
+        #toastNotification { top: calc(20px + env(safe-area-inset-top, 0px)); }
+
+        /* จอแนวตั้ง: กล่ององศาอยู่เหนือจาน กล่องสถานะอยู่ใต้จาน */
+        #degreeDisplay {
+            top: auto;
+            bottom: var(--deg-bottom, calc(100% - clamp(75px, 11vh, 120px) - 80px));
+            left: 50%;
+            transform: translateX(-50%);
+            /* แคบพอไม่ให้ไปทับปุ่มลอยซ้าย-ขวา */
+            width: calc(100% - 2 * (clamp(16px, 4vw, 32px) + clamp(48px, 12vmin, 64px) + 10px));
+            max-width: 500px;
+        }
+        #degreeDisplay #dirAdvice { max-width: 100%; }
+        #statusBadgeWrapper {
+            bottom: calc(clamp(95px, 14vh, 150px) + env(safe-area-inset-bottom, 0px));
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 550px;
+        }
+        #manualRotationControl { bottom: calc(clamp(16px, 3vh, 32px) + env(safe-area-inset-bottom, 0px)); }
+
+        /* จอแนวนอน (มือถือแนวนอน แท็บเล็ตแนวนอน เดสก์ท็อป): ย้ายกล่องไปไว้ข้างจาน */
+        body.side-layout #degreeDisplay {
+            top: var(--side-top, 180px); bottom: auto;
+            left: calc(var(--side-w, 260px) / 2 + env(safe-area-inset-left, 0px) / 2);
+            width: calc(var(--side-w, 260px) - 32px); max-width: 440px;
+        }
+        body.side-layout #degreeDisplay .deg-arrow { display: none; }
+        body.side-layout #dirAdvice { order: 2; margin: 12px 0 0; width: 100%; max-width: 100%; }
+        body.side-layout #degreeBox { width: 100%; }
+        body.side-layout #statusBadgeWrapper {
+            top: var(--side-top, 180px); bottom: auto;
+            left: calc(100% - var(--side-w, 260px) / 2 - env(safe-area-inset-right, 0px) / 2);
+            width: calc(var(--side-w, 260px) - 32px); max-width: 440px;
+        }
+        body.side-layout #manualRotationControl {
+            left: auto; right: env(safe-area-inset-right, 0px);
+            width: var(--side-w, 260px); padding-left: 16px; padding-right: 16px;
+        }
+        body.side-layout #manualRotationControl input { max-width: 100%; }
+        /* จอเตี้ยมาก (มือถือแนวนอน): ลดขนาดตัวอักษรในกล่องสถานะ */
+        @media (max-height: 480px) {
+            body.side-layout #statusBadge { padding: 8px 12px; }
+            body.side-layout #statusBadge span, body.side-layout #statusBadge div { font-size: 12px !important; }
+            body.side-layout #manualRotationControl label { display: none; }
+        }
+        /* iPhone จะซูมหน้าจอเองถ้าช่องกรอกตัวอักษรเล็กกว่า 16px */
+        @media (max-width: 767px) {
+            #sidebar input[type="datetime-local"], #sidebar select { font-size: 16px; }
+        }
+        #sidebar { padding-left: env(safe-area-inset-left, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+        
+        .cn-char { font-family: 'STKaiti', 'KaiTi', 'SimKai', serif; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
+    </style>
+</head>
+<body>
+    <video id="videoBackground" autoplay playsinline></video>
+    <div id="canvas3dContainer"></div>
+
+    <div id="uiLayer" class="flex flex-col h-full w-full">
+        <div id="toastNotification" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 bg-slate-800/95 text-white px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md font-semibold text-[clamp(12px,3vmin,16px)] transition-all duration-300 opacity-0 pointer-events-none scale-90 flex items-center gap-2 border border-slate-600/50">
+            <span id="toastMessage" class="whitespace-nowrap">แจ้งเตือน</span>
+        </div>
+
+        <!-- Floating Buttons (Left): ปรับขนาดปุ่มให้รองรับ Tablet -->
+        <div id="fabLeft" class="absolute top-[clamp(60px,8vh,100px)] left-[clamp(16px,4vw,32px)] z-30 flex flex-col gap-[clamp(12px,2vh,20px)] pointer-events-auto">
+            <button id="menuBtn" class="bg-slate-900/95 border-2 border-slate-700 text-yellow-500 p-[clamp(8px,2vmin,16px)] rounded-2xl shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)]">
+                <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <button id="quickLayerBtn" class="bg-slate-900/95 border-2 border-indigo-500 text-indigo-400 p-[clamp(8px,2vmin,16px)] rounded-2xl shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)]" title="สลับโหมดหน้าปัด">
+                <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+            </button>
+        </div>
+
+        <!-- Floating Buttons (Right): ปรับขนาดปุ่มให้รองรับ Tablet -->
+        <div id="fabRight" class="absolute top-[clamp(60px,8vh,100px)] right-[clamp(16px,4vw,32px)] z-30 flex flex-col gap-[clamp(12px,2vh,20px)] pointer-events-auto">
+            <button id="compassBtn" class="bg-indigo-600/95 text-white p-[clamp(8px,2vmin,16px)] rounded-full shadow-lg border-2 border-indigo-400 hover:bg-indigo-500 transition-all flex items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)]">
+                <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+            <button id="arBtn" class="bg-slate-800/95 text-emerald-400 p-[clamp(8px,2vmin,16px)] rounded-full shadow-lg border-2 border-slate-600 hover:bg-slate-700 transition-all flex items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)]">
+                <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+
+        <div id="sidebar" class="absolute top-0 left-0 w-full md:w-[28rem] lg:w-[32rem] max-w-[95vw] h-full glass-panel z-40 flex flex-col pointer-events-auto shadow-2xl">
+            <div class="flex-shrink-0 bg-slate-900/95 p-4 pt-12 md:pt-4 border-b border-slate-700/80 flex justify-between items-center z-10">
+                <h1 class="text-lg md:text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Luopan 3D Pro
+                </h1>
+                <button id="closeSidebarBtn" class="text-slate-400 hover:text-white p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="flex-shrink-0 flex border-b border-slate-700/80 bg-slate-900/50">
+                <button class="tab-btn flex-1 py-3.5 text-[13px] font-medium text-yellow-400 border-b-2 border-yellow-500 transition-colors" data-tab="config">⚙️ ตั้งค่า (Config)</button>
+                <button class="tab-btn flex-1 py-3.5 text-[13px] font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors" data-tab="analysis">📊 วิเคราะห์ (Analysis)</button>
+            </div>
+
+            <div id="tab-config" class="p-4 space-y-5 flex-1 overflow-y-auto">
+                <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-[13px] font-semibold text-yellow-500 flex items-center gap-1.5">🕒 กาลเวลาจร (Time)</label>
+                        <button id="setNowBtn" class="text-[11px] bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded transition-colors">เวลาปัจจุบัน</button>
+                    </div>
+                    <input type="datetime-local" id="targetDate" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-yellow-500 focus:outline-none mb-4">
+                    
+                    <div class="text-[11px] text-slate-400 mb-2 font-medium">เปิดเช็คข้อมูลทิศร้ายกาลเวลา:</div>
+                    <div class="grid grid-cols-2 gap-2 text-[12px]">
+                        <label class="flex items-center gap-2 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer"><input type="checkbox" id="togYear" checked class="rounded border-slate-600 bg-slate-800 w-4 h-4"> <span>ปี (Year)</span></label>
+                        <label class="flex items-center gap-2 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer"><input type="checkbox" id="togMonth" checked class="rounded border-slate-600 bg-slate-800 w-4 h-4"> <span>เดือน (Month)</span></label>
+                        <label class="flex items-center gap-2 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer"><input type="checkbox" id="togDay" checked class="rounded border-slate-600 bg-slate-800 w-4 h-4"> <span>วัน (Day)</span></label>
+                        <label class="flex items-center gap-2 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer"><input type="checkbox" id="togHour" checked class="rounded border-slate-600 bg-slate-800 w-4 h-4"> <span>ยาม (Hour)</span></label>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-[13px] font-semibold text-yellow-500 mb-3 flex items-center gap-1.5">👤 ข้อมูลบุคคล (Person)</label>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">วัน/เดือน/ปีเกิด และเวลา</label>
+                            <input type="datetime-local" id="birthDate" value="1981-06-25T10:16" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-yellow-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">เพศ (Gender)</label>
+                            <select id="gender" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-yellow-500 focus:outline-none">
+                                <option value="M">ชาย (Male)</option>
+                                <option value="F" selected>หญิง (Female)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-900/80 px-4 py-3 rounded-lg border border-slate-700 mt-2">
+                            <span class="text-[12px] text-slate-300">รหัสบุคคล (Kua Number):</span>
+                            <span id="kuaDisplay" class="text-xl font-bold text-yellow-400 bg-slate-800 w-10 h-10 flex items-center justify-center rounded-full border border-yellow-500/50 shadow-inner">8</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-[13px] font-semibold text-blue-400 mb-3 flex items-center gap-1.5">🗺️ แปลนบ้าน (Floor Plan)</label>
+                    <div class="space-y-3">
+                        <input type="file" id="fpInput" accept="image/*" class="hidden">
+                        <button id="fpBtn" class="w-full bg-blue-600/80 hover:bg-blue-500 text-white text-[12px] py-2.5 rounded-lg border border-blue-500 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            อัปโหลดรูปแปลนบ้าน
+                        </button>
+                        
+                        <div id="fpControls" class="hidden space-y-3 pt-2 border-t border-slate-700/80 mt-3">
+                            <div>
+                                <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>ขนาด (Scale)</span><span id="fpScaleVal">1.0x</span></label>
+                                <input type="range" id="fpScale" min="0.1" max="5" step="0.1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>ความโปร่งใส (Opacity)</span><span id="fpOpacityVal">50%</span></label>
+                                <input type="range" id="fpOpacity" min="0" max="1" step="0.05" value="0.5" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>หมุนองศา (Rotation)</span><span id="fpRotationVal">0°</span></label>
+                                <input type="range" id="fpRotation" min="-180" max="180" step="1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>เลื่อนซ้าย-ขวา (Pan X)</span><span id="fpOffsetXVal">0.0</span></label>
+                                <input type="range" id="fpOffsetX" min="-10" max="10" step="0.1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div>
+                                <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>เลื่อนขึ้น-ลง (Pan Y)</span><span id="fpOffsetYVal">0.0</span></label>
+                                <input type="range" id="fpOffsetY" min="-10" max="10" step="0.1" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button id="fpResetBtn" class="flex-1 bg-slate-700/50 hover:bg-slate-600/80 text-slate-300 text-[11px] py-2 rounded-lg border border-slate-600/50 transition-colors">
+                                    รีเซ็ตค่า
+                                </button>
+                                <button id="fpRemoveBtn" class="flex-1 bg-red-900/50 hover:bg-red-800/80 text-red-300 text-[11px] py-2 rounded-lg border border-red-700/50 transition-colors">
+                                    ลบแปลน
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-[13px] font-semibold text-emerald-400 mb-3 flex items-center gap-1.5">🎯 ปรับแต่งจานหล่อแก</label>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>ขนาดจาน (Scale)</span><span id="luopanScaleVal">1.0x</span></label>
+                            <input type="range" id="luopanScale" min="0.5" max="3" step="0.1" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="flex justify-between text-[10px] text-slate-400 mb-1"><span>ความโปร่งใสจาน (Opacity)</span><span id="luopanOpacityVal">100%</span></label>
+                            <input type="range" id="luopanOpacity" min="0.1" max="1" step="0.05" value="1" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pb-8 mt-4">
+                    <label class="block text-[12px] font-medium text-slate-300 border-b border-slate-700 pb-1">โหมดแสดงผลหน้าปัด (View Mode)</label>
+                    <div class="flex flex-col gap-2 pt-2">
+                        <button class="layer-btn active px-4 py-3 bg-slate-800 border border-yellow-600 text-yellow-400 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="TIME"><span class="text-red-400 text-lg">🕒</span> แสดงทิศร้ายกาลเวลา (Afflictions)</button>
+                        <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="KUA"><span class="text-emerald-400 text-lg">👤</span> เฉพาะทิศมงคลบุคคล (8 Mansions)</button>
+                        <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="STARS"><span class="text-blue-400 text-lg">⭐</span> เฉพาะดาวเหิน (Flying Stars)</button>
+                        <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="64GUA"><span class="text-indigo-400 text-lg">☯️</span> ผัง 64 ข่วย (Xuan Kong Da Gua)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-analysis" class="p-3 md:p-4 hidden flex-1 h-full overflow-hidden flex flex-col md:flex-row gap-3">
+                <div class="flex flex-col gap-3 w-full md:w-1/2 overflow-y-auto shrink-0 md:shrink">
+                    <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-600/50 shadow-inner">
+                        <h3 class="text-[11px] md:text-[12px] font-bold text-yellow-400 mb-2.5 flex items-center gap-1.5 border-b border-slate-700 pb-1.5">🕒 กาลเวลาจร</h3>
+                        <div class="grid grid-cols-4 gap-1.5" id="timeBaziPanel"></div>
+                    </div>
+                    
+                    <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-600/50 shadow-inner">
+                        <h3 class="text-[11px] md:text-[12px] font-bold text-emerald-400 mb-2.5 flex items-center gap-1.5 border-b border-slate-700 pb-1.5">👤 ดวงบุคคล</h3>
+                        <div class="grid grid-cols-4 gap-1.5" id="personBaziPanel"></div>
+                    </div>
+                </div>
+
+                <div class="bg-red-950/40 border border-red-900/60 rounded-xl p-3 flex flex-col w-full md:w-1/2 flex-1 md:flex-auto shadow-inner relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-red-600/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <h3 class="text-[12px] font-bold text-red-400 mb-3 flex items-center gap-1.5 border-b border-red-900/50 pb-2">
+                        <span>⚠️</span> สรุปทิศร้ายและผลกระทบ
+                    </h3>
+                    <div id="afflictionSummary" class="text-[10px] md:text-[11px] text-slate-300 space-y-2.5 flex-1 overflow-y-auto pr-2 pb-6 md:pb-2">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- กล่ององศาด้านบน: Responsive ขนาดกล่องและฟอนต์ -->
+        <div id="degreeDisplay" class="absolute z-20 flex flex-col items-center pointer-events-none transition-opacity duration-300">
+            <div id="dirAdvice" class="mb-3 bg-white/95 backdrop-blur-sm border-2 border-slate-300 rounded-xl px-[clamp(16px,4vmin,32px)] py-[clamp(8px,2vmin,16px)] shadow-[0_10px_25px_rgba(0,0,0,0.5)] text-center w-max max-w-[95%] transition-all duration-300 pointer-events-auto opacity-0 scale-95 origin-bottom hidden flex flex-col items-center justify-end">
+                <div id="adviceTitle" class="text-black font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1"></div>
+                <div id="adviceRemedy" class="text-slate-700 text-[clamp(11px,2.8vmin,18px)] leading-tight font-medium"></div>
+            </div>
+
+            <div id="degreeBox" class="bg-slate-900/95 backdrop-blur-md border border-yellow-500/80 rounded-xl px-[clamp(12px,3vmin,24px)] py-[clamp(6px,1.5vmin,12px)] shadow-[0_8px_30px_rgba(0,0,0,0.8)] text-center relative pointer-events-auto w-max">
+                <div class="deg-arrow absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-3.5 h-3.5 bg-slate-900 border-b border-r border-yellow-500/80 rotate-45 z-10"></div>
+
+                <div class="deg-arrow absolute -bottom-[clamp(1rem,3vmin,1.5rem)] left-1/2 transform -translate-x-1/2 text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,1)] pointer-events-none">
+                    <svg class="w-[clamp(20px,5vmin,32px)] h-[clamp(24px,6vmin,38px)]" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 24L2 8h20L12 24z" />
+                    </svg>
+                </div>
+
+                <span id="degreeValue" class="text-yellow-400 font-bold text-[clamp(18px,4.5vmin,32px)] font-mono relative z-20 drop-shadow-md tracking-wider">0.0°</span>
+                <div id="dirLabel" class="text-slate-300 text-[clamp(10px,2.5vmin,16px)] font-semibold mt-0 relative z-20 uppercase tracking-wider">เหนือ (N)</div>
+            </div>
+        </div>
+
+        <!-- กล่องสถานะด้านล่าง: Responsive ขนาดกล่องและฟอนต์ -->
+        <div id="statusBadgeWrapper" class="absolute z-10 flex flex-col items-center pointer-events-none transition-opacity">
+            <div id="statusBadge" class="bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl px-[clamp(16px,4vmin,32px)] py-[clamp(10px,2.5vmin,20px)] text-center shadow-[0_10px_30px_rgba(0,0,0,0.8)] font-medium tracking-wide w-full pointer-events-auto transition-opacity">
+            </div>
+        </div>
+
+        <div id="manualRotationControl" class="absolute bottom-[clamp(16px,3vh,32px)] w-full px-8 flex flex-col items-center pointer-events-none z-20">
+            <label class="text-[clamp(10px,2.5vmin,16px)] text-yellow-400 mb-2 font-medium bg-slate-900/90 px-4 py-1.5 rounded-full border border-yellow-600/30 shadow-lg pointer-events-auto flex items-center gap-1.5">👆 เลื่อนปรับองศาจานหล่อแก</label>
+            <input type="range" id="manualDegree" min="0" max="360" step="0.1" value="0" class="w-full max-w-md md:max-w-xl pointer-events-auto bg-slate-700 rounded-lg h-[clamp(12px,3vmin,20px)] appearance-none shadow-inner border border-slate-600 cursor-pointer">
+        </div>
+    </div>
+
+    <script>
+        const ganData = [
+            { char: '甲', th: 'เจี่ย', el: 'ไม้', color: 'text-emerald-400', bg: 'bg-emerald-900/30', border: 'border-emerald-500/30' },
+            { char: '乙', th: 'อี่', el: 'ไม้', color: 'text-emerald-400', bg: 'bg-emerald-900/30', border: 'border-emerald-500/30' },
+            { char: '丙', th: 'ปิ่ง', el: 'ไฟ', color: 'text-red-400', bg: 'bg-red-900/30', border: 'border-red-500/30' },
+            { char: '丁', th: 'ติง', el: 'ไฟ', color: 'text-red-400', bg: 'bg-red-900/30', border: 'border-red-500/30' },
+            { char: '戊', th: 'อู้', el: 'ดิน', color: 'text-amber-500', bg: 'bg-amber-900/30', border: 'border-amber-500/30' },
+            { char: '己', th: 'จี่', el: 'ดิน', color: 'text-amber-500', bg: 'bg-amber-900/30', border: 'border-amber-500/30' },
+            { char: '庚', th: 'เกิง', el: 'ทอง', color: 'text-slate-300', bg: 'bg-slate-600/30', border: 'border-slate-400/30' },
+            { char: '辛', th: 'ซิน', el: 'ทอง', color: 'text-slate-300', bg: 'bg-slate-600/30', border: 'border-slate-400/30' },
+            { char: '壬', th: 'เหริน', el: 'น้ำ', color: 'text-blue-400', bg: 'bg-blue-900/30', border: 'border-blue-500/30' },
+            { char: '癸', th: 'กุ่ย', el: 'น้ำ', color: 'text-blue-400', bg: 'bg-blue-900/30', border: 'border-blue-500/30' }
+        ];
+
+        const zhiData = [
+            { branch: '子', char: '子', th: 'ชวด', el: 'น้ำ', color: 'text-blue-400', name: 'Zi ชวด', deg: 0,
+              impact: { organ: 'ไต, หู, กระเพาะปัสสาวะ, ระบบสืบพันธุ์', person: 'ลูกชายคนกลาง, ชายวัยกลางคน', event: 'อุบัติเหตุทางน้ำ, ปัญหาชู้สาว, คดีความซ่อนเร้น' } },
+            { branch: '丑', char: '丑', th: 'ฉลู', el: 'ดิน', color: 'text-amber-500', name: 'Chou ฉลู', deg: 30,
+              impact: { organ: 'ม้าม, ท้อง, ระบบย่อยอาหาร', person: 'ลูกชายคนเล็ก, เด็กชาย', event: 'อสังหาริมทรัพย์มีปัญหา, การงานหยุดชะงัก, โรคเรื้อรัง' } },
+            { branch: '寅', char: '寅', th: 'ขาล', el: 'ไม้', color: 'text-emerald-400', name: 'Yin ขาล', deg: 60,
+              impact: { organ: 'ถุงน้ำดี, เส้นประสาท, แขนขา', person: 'ลูกชายคนโต, ผู้บริหารหนุ่ม', event: 'อุบัติเหตุทางรถยนต์, บาดเจ็บจากการออกกำลังกาย, เสียทรัพย์กะทันหัน' } },
+            { branch: '卯', char: '卯', th: 'เถาะ', el: 'ไม้', color: 'text-emerald-400', name: 'Mao เถาะ', deg: 90,
+              impact: { organ: 'ตับ, เส้นเอ็น, มือ, นิ้ว', person: 'ลูกสาวคนโต, หญิงวัยทำงาน', event: 'ปัญหาชู้สาว(ดอกท้อ), ทะเลาะเบาะแว้งรุนแรง, ผ่าตัด' } },
+            { branch: '辰', char: '辰', th: 'มะโรง', el: 'ดิน', color: 'text-amber-500', name: 'Chen มะโรง', deg: 120,
+              impact: { organ: 'กระเพาะอาหาร, ผิวหนัง, กล้ามเนื้อ', person: 'ลูกสาวคนโต, ชายวัยกลางคน', event: 'คดีความยืดเยื้อ, ถูกหลอกลวง, ปัญหาหุ้นส่วน' } },
+            { branch: '巳', char: '巳', th: 'มะเส็ง', el: 'ไฟ', color: 'text-red-400', name: 'Si มะเส็ง', deg: 150,
+              impact: { organ: 'หัวใจ, หน้าตา, ระบบสูบฉีดเลือด', person: 'ลูกสาวคนกลาง, หญิงสาว', event: 'ไฟไหม้, อารมณ์ฉุนเฉียว, ข่าวลือเสื่อมเสียชื่อเสียง' } },
+            { branch: '午', char: '午', th: 'มะเมีย', el: 'ไฟ', color: 'text-red-400', name: 'Wu มะเมีย', deg: 180,
+              impact: { organ: 'ลำไส้เล็ก, ตา, ระบบหมุนเวียนโลหิต', person: 'ลูกสาวคนกลาง, ผู้หญิงเก่ง', event: 'โรคหัวใจเฉียบพลัน, สูญเสียตำแหน่ง, คดีความจากการใช้อารมณ์' } },
+            { branch: '未', char: '未', th: 'มะแม', el: 'ดิน', color: 'text-amber-500', name: 'Wei มะแม', deg: 210,
+              impact: { organ: 'ม้าม, กระดูกสันหลัง, ช่องท้อง', person: 'แม่, หญิงสูงอายุ', event: 'เจ็บป่วยออดแอด, ปัญหาในครอบครัว, อุบัติเหตุในที่มืด' } },
+            { branch: '申', char: '申', th: 'วอก', el: 'ทอง', color: 'text-slate-300', name: 'Shen วอก', deg: 240,
+              impact: { organ: 'ลำไส้ใหญ่, ระบบทางเดินหายใจ', person: 'พ่อ, ผู้นำชาย, ชายสูงอายุ', event: 'อุบัติเหตุจากของมีคม/โลหะ, ปัญหาการเดินทาง, แตกหักกับผู้ใหญ่' } },
+            { branch: '酉', char: '酉', th: 'ระกา', el: 'ทอง', color: 'text-slate-300', name: 'You ระกา', deg: 270,
+              impact: { organ: 'ปอด, ฟัน, กระดูก, ปาก', person: 'ลูกสาวคนเล็ก, เด็กหญิง', event: 'ผ่าตัด, เลือดตกยางออก, คำพูดให้ร้าย(นกสองหัว)' } },
+            { branch: '戌', char: '戌', th: 'จอ', el: 'ดิน', color: 'text-amber-500', name: 'Xu จอ', deg: 300,
+              impact: { organ: 'กระเพาะอาหาร, ข้อต่อ, ขา', person: 'พ่อ, ผู้นำชาย, ชายสูงอายุ', event: 'อุบัติเหตุทางรถยนต์(ชนหนัก), การลงทุนผิดพลาด, ปัญหาเอกสารสัญญา' } },
+            { branch: '亥', char: '亥', th: 'กุน', el: 'น้ำ', color: 'text-blue-400', name: 'Hai กุน', deg: 330,
+              impact: { organ: 'ไต, เลือด, ระบบน้ำในร่างกาย', person: 'ลูกชายคนเล็ก, เด็กชาย', event: 'โรคซึมเศร้า, ปัญหาทางการเงินหมุนเวียน, โจรภัย' } }
+        ];
+
+        const branches = zhiData; 
+        const mountains24 = [
+            { name: "Ren เหริน", deg: 345 }, { name: "Zi ชวด", deg: 0 }, { name: "Gui กุ่ย", deg: 15 },
+            { name: "Chou ฉลู", deg: 30 }, { name: "Gen เกิน", deg: 45 }, { name: "Yin ขาล", deg: 60 },
+            { name: "Jia เจี๋ย", deg: 75 }, { name: "Mao เถาะ", deg: 90 }, { name: "Yi อี้", deg: 105 },
+            { name: "Chen มะโรง", deg: 120 }, { name: "Xun ซวิ่น", deg: 135 }, { name: "Si มะเส็ง", deg: 150 },
+            { name: "Bing ปิ่ง", deg: 165 }, { name: "Wu มะเมีย", deg: 180 }, { name: "Ding ติง", deg: 195 },
+            { name: "Wei มะแม", deg: 210 }, { name: "Kun คุน", deg: 225 }, { name: "Shen วอก", deg: 240 },
+            { name: "Geng เกิง", deg: 255 }, { name: "You ระกา", deg: 270 }, { name: "Xin ซิน", deg: 285 },
+            { name: "Xu จอ", deg: 300 }, { name: "Qian เฉียน", deg: 315 }, { name: "Hai กุน", deg: 330 }
+        ];
+
+        const dirs8 = {
+            N: { name: 'เหนือ', start: 337.5, end: 22.5 }, NE: { name: 'ต.อ.เฉียงเหนือ', start: 22.5, end: 67.5 },
+            E: { name: 'ตะวันออก', start: 67.5, end: 112.5 }, SE: { name: 'ต.อ.เฉียงใต้', start: 112.5, end: 157.5 },
+            S: { name: 'ใต้', start: 157.5, end: 202.5 }, SW: { name: 'ต.ต.เฉียงใต้', start: 202.5, end: 247.5 },
+            W: { name: 'ตะวันตก', start: 247.5, end: 292.5 }, NW: { name: 'ต.ต.เฉียงเหนือ', start: 292.5, end: 337.5 }
+        };
+
+        const starsInfo = {
+            1: { type: 'good', desc: 'ดาว 1 โชคเสริม ธุรกิจ เปลี่ยนแปลง', remedy: 'วางอุปกรณ์น้ำเคลื่อนไหว น้ำพุ นาฬิกาลูกตุ้มโลหะ' },
+            2: { type: 'bad', desc: 'ดาว 2 เจ็บป่วย เรื้อรัง ซึมเศร้า', remedy: 'แขวนน้ำเต้า เหรียญ 6 จักรพรรดิ หรือโลหะทรงกลม' },
+            3: { type: 'bad', desc: 'ดาว 3 ทะเลาะ คดีความ แย่งชิง', remedy: 'สลายพลังด้วย สีแดง เช่น โคมไฟสว่าง พรมแดง' },
+            4: { type: 'neutral', desc: 'ดาว 4 การศึกษา เสน่ห์ ความรัก', remedy: 'กระตุ้นด้วย ต้นไผ่กวนอิม 4 ก้าน หรือพู่กันจีน' },
+            5: { type: 'fatal', desc: 'ดาว 5 วิบัติ หายนะ อุบัติเหตุ', remedy: 'ห้ามเคาะเจาะทุบเด็ดขาด! แขวนระฆังลมโลหะ 6 หลอด' },
+            6: { type: 'neutral', desc: 'ดาว 6 อำนาจ บารมี ผู้ใหญ่อุปถัมภ์', remedy: 'กระตุ้นด้วย เซรามิก ดินเผา หรือลูกแก้วคริสตัล' },
+            7: { type: 'bad', desc: 'ดาว 7 โจรภัย แข่งขัน เสียเลือด', remedy: 'วางอ่างน้ำนิ่งสีฟ้า/ดำ แร่พลอยสีน้ำเงิน เพื่อถ่ายเท' },
+            8: { type: 'good', desc: 'ดาว 8 โชคลาภปัจจุบัน มั่นคง', remedy: 'กระตุ้นด้วย สิ่งเคลื่อนไหว พัดลม น้ำตก ลูกแก้วหมุน' },
+            9: { type: 'good', desc: 'ดาว 9 โชคลาภอนาคต ชื่อเสียง ยินดี', remedy: 'กระตุ้นด้วย ต้นไม้ ดอกไม้ โคมไฟสว่าง สิ่งของสีแดง' }
+        };
+
+        const gua64Info = [
+            "เฉียน (Qian)|ผู้นำและอำนาจ: เหมาะตั้งโต๊ะผู้บริหาร เน้นความก้าวหน้า", "คุน (Kun)|มารดาและอุปถัมภ์: เหมาะกับห้องพักผ่อน เสริมความมั่นคง",
+            "จุน (Chun)|การก่อร่างสร้างตัว: พลังแห่งการเริ่มต้น ฝ่าฟันอุปสรรค", "เหมิง (Meng)|ปัญญาและการเรียนรู้: ดีเยี่ยมสำหรับโต๊ะอ่านหนังสือเด็ก",
+            "ซู (Xu)|การสะสมพลัง: เหมาะกับห้องพักผ่อน รอคอยจังหวะที่ดี", "ซ่ง (Song)|ความขัดแย้ง: ระวังการตั้งโต๊ะเจรจาหรือห้องประชุมทิศนี้",
+            "ซือ (Shi)|ระเบียบวินัย: เสริมความเป็นผู้นำและการจัดการคน", "ปี่ (Bi)|ความกลมเกลียว: ดีต่อห้องนั่งเล่น เสริมความสามัคคี",
+            "เสี่ยวฉู่ (Xiao Chu)|ความสำเร็จเล็กๆ: เหมาะกับการทำงานที่ต้องใช้ความละเอียด", "หลี่ (Lu)|การก้าวเดิน: พลังแห่งความรอบคอบ ระมัดระวังในการลงทุน",
+            "ไท่ (Tai)|ความรุ่งเรือง: ราบรื่น สมบูรณ์ เหมาะตั้งโต๊ะทำงานหรือตู้เซฟ", "ผี่ (Pi)|ความตีบตัน: ระวังธุรกิจสะดุด ไม่ควรตั้งทางเข้าหลักทิศนี้",
+            "ถงเหริน (Tong Ren)|มิตรภาพ: เสริมคอนเนคชั่น และการทำงานเป็นทีม", "ต้าโหย่ว (Da You)|ความมั่งคั่ง: ทิศโชคลาภใหญ่ เหมาะตั้งประตูหรือเครื่องคิดเงิน",
+            "เชียน (Qian)|ความถ่อมตน: เสริมบารมีและได้รับความช่วยเหลือจากผู้ใหญ่", "อวี้ (Yu)|ความรื่นเริง: พลังงานบวก เหมาะกับมุมพักผ่อนสังสรรค์",
+            "สุย (Sui)|การโอนอ่อน: ปรับตัวเก่ง เหมาะกับงานบริการหรืองานเจรจา", "กู่ (Gu)|การแก้ไข: พื้นที่สำหรับฟื้นฟู พลิกวิกฤตเป็นโอกาส",
+            "หลิน (Lin)|การมาเยือน: เสริมเสน่ห์ เมตตามหานิยม คนอยากเข้าหา", "กวน (Guan)|วิสัยทัศน์: เหมาะกับโต๊ะผู้บริหารที่ต้องวางกลยุทธ์ไกลๆ",
+            "ซื่อเหอ (Shi He)|ความเด็ดขาด: เหมาะกับสายงานกฎหมาย หรือต้องฟันธง", "ปี้ (Bi)|ความงาม/ภาพลักษณ์: เสริมงานศิลปะ วงการบันเทิง",
+            "ปัว (Bo)|การเสื่อมถอย: ทิศควรระวัง ปล่อยให้สงบ ไม่ควรเคลื่อนไหว", "ฟู่ (Fu)|การฟื้นคืน: พลังแห่งการเริ่มต้นใหม่ ทวงคืนความสำเร็จ",
+            "อู๋วั่ง (Wu Wang)|ความจริงใจ: ทำธุรกิจตรงไปตรงมาจะรุ่งเรือง ไร้เรื่องร้าย", "ต้าฉู่ (Da Chu)|การสะสมทรัพย์ใหญ่: ทิศมงคลสำหรับวางตู้เซฟ หรือคลังสินค้า",
+            "อี๋ (Yi)|การบำรุงเลี้ยง: เหมาะกับห้องครัว ห้องอาหาร เสริมสุขภาพ", "ต้ากว้อ (Da Guo)|ภาระหนัก: พลังงานกดดันสูง เลี่ยงการตั้งโต๊ะทำงานหลัก",
+            "ข่าน (Kan)|ความลึกซึ้ง: พลังธาตุน้ำ ระวังซึมเศร้า ควรทำแสงให้สว่าง", "หลี (Li)|ความสว่างไสว: พลังธาตุไฟ เสริมชื่อเสียง โดดเด่น เป็นที่รู้จัก",
+            "เสียน (Xian)|แรงดึงดูด: เสริมความรัก คู่ครอง และความสัมพันธ์อันดี", "เหิง (Heng)|ความยั่งยืน: ธุรกิจมั่นคงระยะยาว รักษาฐานลูกค้าเดิมได้ดี",
+            "ตุ้น (Dun)|การถอยหลบ: ทิศแห่งการพักฟื้น ไม่เหมาะสำหรับการบุกเบิก", "ต้าจวง (Da Zhuang)|พลังอันยิ่งใหญ่: ก้าวหน้าอย่างรวดเร็วและทรงพลัง",
+            "จิ้น (Jin)|ความเจริญก้าวหน้า: โอกาสเติบโตสูง เหมาะตั้งประตู/โต๊ะทำงาน", "หมิงอี๋ (Ming Yi)|แสงที่ถูกบดบัง: ทิศอับโชค ควรเสริมด้วยโคมไฟสว่างๆ",
+            "เจียเหริน (Jia Ren)|ความอบอุ่น: พลังงานครอบครัว เสริมความสามัคคีในบ้าน", "ขุย (Kui)|ความขัดแย้ง: ระวังความเห็นไม่ตรงกัน เลี่ยงหันโต๊ะเจรจา",
+            "เจี่ยน (Jian)|อุปสรรค: ทำอะไรมักติดขัด ไม่ควรตั้งของเคลื่อนไหวทิศนี้", "เจี่ย (Jie)|การปลดล็อค: คลี่คลายปัญหา อุปสรรคต่างๆ กำลังจะหมดไป",
+            "สุ่น (Sun)|การสูญเสีย: ระวังเรื่องรายจ่าย ทิศนี้ไม่ควรวางตู้เซฟ", "อี้ (Yi)|การเพิ่มพูน: ทิศมหาโชค ยิ่งขยันยิ่งรวย เหมาะกระตุ้นด้วยน้ำพุ",
+            "กวั่ย (Kuai)|ความเด็ดเดี่ยว: กล้าตัดสินใจ เหมาะกับผู้นำที่ต้องการความเฉียบขาด", "โก่ว (Gou)|การพบพาน: โอกาสใหม่ๆ เข้ามาแบบไม่คาดฝัน เสน่ห์แรง",
+            "ชุ่ย (Cui)|การรวมตัว: เป็นศูนย์รวมจิตใจและทีมงาน คนพร้อมสนับสนุน", "เซิง (Sheng)|การเลื่อนขั้น: หน้าที่การงานเติบโต เหมาะกับวัยทำงาน/เรียน",
+            "คุ่น (Kun)|ความเหน็ดเหนื่อย: พลังงานถดถอย ควรทำพื้นที่ให้โปร่งโล่ง", "จิ่ง (Jing)|ความอุดมสมบูรณ์: ทิศแห่งน้ำบ่อ ไม่ขาดแคลน มีกินมีใช้ตลอด",
+            "เก๋อ (Ge)|การเปลี่ยนแปลง: พลิกโฉมธุรกิจ เหมาะกับการรีแบรนด์", "ติ่ง (Ding)|ความมั่นคง: เป็นเสาหลัก ฐานะหนักแน่น เหมาะตั้งเตาไฟ",
+            "เจิ้น (Zhen)|ความตื่นตัว: กระตือรือร้น รวดเร็ว เหมาะกับงานแข่งขันสูง", "เกิน (Gen)|ความนิ่งสงบ: ลดความวุ่นวาย เหมาะกับการทำสมาธิ/ห้องนอน",
+            "เจี้ยน (Jian)|การก้าวทีละก้าว: เติบโตอย่างช้าๆ แต่มั่นคง ไม่รีบร้อน", "กุยเม่ย (Gui Mei)|ความผิดปกติ: ระวังปัญหาความสัมพันธ์ หรือทำผิดขั้นตอน",
+            "เฟิง (Feng)|ความรุ่งโรจน์: ยุคทอง ธุรกิจเฟื่องฟู เหมาะรับกระแสชี่ภายนอก", "หลู่ (Lu)|การเดินทาง: พลังแห่งการเคลื่อนที่ เหมาะกับงานต่างประเทศ",
+            "ซวิ่น (Xun)|ความนอบน้อม: ลื่นไหลเหมือนสายลม เจรจาค้าขายราบรื่น", "ตุ้ย (Dui)|ความเบิกบาน: เสริมความสุข เสียงหัวเราะ และการสื่อสาร",
+            "ฮ่วน (Huan)|การสลายตัว: ปัญหาคลี่คลาย หรืออาจหมายถึงกระจายรายได้", "เจี๋ย (Jie)|การมีขอบเขต: รู้จักประมาณตน ควบคุมค่าใช้จ่ายได้ดี",
+            "จงฝู (Zhong Fu)|ความไว้ใจ: เสริมเครดิต ความน่าเชื่อถือ ลูกค้าเชื่อมั่น", "เสี่ยวกว้อ (Xiao Guo)|เรื่องเล็กน้อย: เน้นทำงานเก็บรายละเอียด เลี่ยงลงทุนใหญ่",
+            "จี้จี้ (Ji Ji)|ความสำเร็จ: ทุกอย่างลงตัว เรียบร้อย พลังงานสมดุล", "เว่ยจี้ (Wei Ji)|ยังไม่สิ้นสุด: พลังงานยังไม่เสถียร ต้องอาศัยความพยายามต่อ"
+        ];
+
+        // ผัง 64 ข่วยของหล่อแก (玄空大卦) เรียงตามวงกลมฝูซี (先天): 復 เริ่มที่ 0°, 乾 จบที่ 180°, 姤 เริ่มที่ 180°, 坤 จบที่ 360°
+        // ค่าในอาร์เรย์คือเลขลำดับ King Wen (1–64) ใช้หาตัวอักษร Unicode (U+4DC0 + n - 1) และข้อความใน gua64Info
+        const FUXI_RING = [24,27,3,42,51,21,17,25,36,22,63,37,55,30,49,13,19,41,60,61,54,38,58,10,11,26,5,9,34,14,43,1,
+                           44,28,50,32,57,48,18,46,6,47,64,40,59,29,4,7,33,31,56,62,53,39,52,15,12,45,35,16,20,8,23,2];
+        // ตรีโกณก่อนฟ้า (先天) เริ่มจากทิศเหนือตามเข็มนาฬิกา: 坤 เหนือ, 震 อีสาน, 離 ตะวันออก, 兌 อาคเนย์, 乾 ใต้, 巽 หรดี, 坎 ตะวันตก, 艮 พายัพ
+        const EARLY_HEAVEN_TRIGRAMS = ['☷', '☳', '☲', '☱', '☰', '☴', '☵', '☶'];
+
+        // ลองจิจูดสุริยะ (องศา) ใช้หาวัน 立春 (315°) เมื่อโหลด Lunar.js ไม่ได้
+        function sunLongitude(date) {
+            const n = date.getTime() / 86400000 + 2440587.5 - 2451545.0;
+            const L = 280.460 + 0.9856474 * n;
+            const g = (357.528 + 0.9856003 * n) * Math.PI / 180;
+            return (((L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) % 360) + 360) % 360;
+        }
+        // ปีฮวงจุ้ย: เปลี่ยนปีที่เวลา 立春 จริง (ไม่ใช่ 1 ม.ค. หรือ 4 ก.พ. ตายตัว)
+        function solarYearOf(date, yearBranchFromBazi) {
+            const y = date.getFullYear();
+            if (yearBranchFromBazi !== undefined && yearBranchFromBazi >= 0) {
+                return (((y - 4) % 12) + 12) % 12 === yearBranchFromBazi ? y : y - 1;
+            }
+            const lon = sunLongitude(date);
+            return (date.getMonth() < 3 && lon >= 270 && lon < 315) ? y - 1 : y;
+        }
+
+        let state = {
+            date: new Date(), birthDate: new Date(1981, 5, 25, 10, 16), gender: 'F', viewMode: 'TIME', is64GuaMode: false,
+            toggles: { year: true, month: true, day: true, hour: true },
+            calc: { timeBazi: {}, personBazi: {}, afflictions: {}, stars: {}, kua: 8, auspiciousDirs: [], inauspiciousDirs: [] },
+            isCompassActive: false, currentDegree: 0
+        };
+
+        let isARTransparent = false;
+
+        const els = {
+            targetDate: document.getElementById('targetDate'), setNowBtn: document.getElementById('setNowBtn'),
+            birthDate: document.getElementById('birthDate'), gender: document.getElementById('gender'),
+            kuaDisplay: document.getElementById('kuaDisplay'),
+            togYear: document.getElementById('togYear'), togMonth: document.getElementById('togMonth'),
+            togDay: document.getElementById('togDay'), togHour: document.getElementById('togHour'),
+            layerBtns: document.querySelectorAll('.layer-btn'), timeBaziPanel: document.getElementById('timeBaziPanel'),
+            personBaziPanel: document.getElementById('personBaziPanel'), afflictionSummary: document.getElementById('afflictionSummary'),
+            degreeValue: document.getElementById('degreeValue'), dirLabel: document.getElementById('dirLabel'),
+            dirAdvice: document.getElementById('dirAdvice'), adviceTitle: document.getElementById('adviceTitle'),
+            adviceRemedy: document.getElementById('adviceRemedy'), statusBadge: document.getElementById('statusBadge'),
+            compassBtn: document.getElementById('compassBtn'), arBtn: document.getElementById('arBtn'),
+            manualDegree: document.getElementById('manualDegree'), manualRotationControl: document.getElementById('manualRotationControl'),
+            menuBtn: document.getElementById('menuBtn'), quickLayerBtn: document.getElementById('quickLayerBtn'),
+            sidebar: document.getElementById('sidebar'), closeSidebarBtn: document.getElementById('closeSidebarBtn'),
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            toastNotification: document.getElementById('toastNotification'), toastMessage: document.getElementById('toastMessage'),
+            
+            // Floor Plan Elements
+            fpInput: document.getElementById('fpInput'), fpBtn: document.getElementById('fpBtn'),
+            fpScale: document.getElementById('fpScale'), fpOpacity: document.getElementById('fpOpacity'),
+            fpRotation: document.getElementById('fpRotation'), fpControls: document.getElementById('fpControls'),
+            fpRemoveBtn: document.getElementById('fpRemoveBtn'), fpOffsetX: document.getElementById('fpOffsetX'),
+            fpOffsetY: document.getElementById('fpOffsetY'), fpResetBtn: document.getElementById('fpResetBtn'),
+            luopanScale: document.getElementById('luopanScale'), luopanOpacity: document.getElementById('luopanOpacity')
+        };
+
+        function showToast(msg) {
+            els.toastMessage.innerText = msg;
+            els.toastNotification.classList.remove('opacity-0', 'scale-90', 'pointer-events-none');
+            els.toastNotification.classList.add('opacity-100', 'scale-100');
+            setTimeout(() => {
+                els.toastNotification.classList.remove('opacity-100', 'scale-100');
+                els.toastNotification.classList.add('opacity-0', 'scale-90', 'pointer-events-none');
+            }, 4000);
+        }
+
+        const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+        els.targetDate.value = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 16);
+        
+        const savedBirthDate = localStorage.getItem('luopan_birthDate');
+        const savedGender = localStorage.getItem('luopan_gender');
+
+        if (savedBirthDate) { els.birthDate.value = savedBirthDate; state.birthDate = new Date(savedBirthDate); } 
+        else { els.birthDate.value = (new Date(state.birthDate - tzOffset)).toISOString().slice(0, 16); }
+        if (savedGender) { els.gender.value = savedGender; state.gender = savedGender; }
+
+        els.birthDate.addEventListener('change', (e) => { localStorage.setItem('luopan_birthDate', e.target.value); calculateAll(); });
+        els.gender.addEventListener('change', (e) => { localStorage.setItem('luopan_gender', e.target.value); calculateAll(); });
+        els.setNowBtn.addEventListener('click', () => { els.targetDate.value = (new Date(new Date() - tzOffset)).toISOString().slice(0, 16); calculateAll(); });
+        els.targetDate.addEventListener('change', () => { calculateAll(); });
+
+        function getManualDayPillar(dt) {
+            const y = dt.getFullYear();
+            const m = dt.getMonth() + 1;
+            const d = dt.getDate();
+            let jy = y, jm = m;
+            if (jm <= 2) { jy -= 1; jm += 12; }
+            let a = Math.floor(jy / 100);
+            let b = 2 - a + Math.floor(a / 4);
+            let jd = Math.floor(365.25 * (jy + 4716)) + Math.floor(30.6001 * (jm + 1)) + d + b - 1524.5;
+            let dayIndex = (Math.floor(jd + 0.5) - 11) % 60;
+            if (dayIndex < 0) dayIndex += 60;
+            return { gan: dayIndex % 10, zhi: dayIndex % 12 };
+        }
+
+        function getPillarsFallback(dt) {
+            const y = solarYearOf(dt);
+            const yBranch = (((y - 4) % 12) + 12) % 12;
+            const mBranch = (dt.getMonth() + 1) % 12; 
+            const dData = getManualDayPillar(dt);
+            const hour = dt.getHours();
+            const hBranch = Math.floor((hour + 1) % 24 / 2) % 12;
+            
+            return {
+                year: yBranch, month: mBranch, day: dData.zhi, hour: hBranch, solarYear: y,
+                bazi: { yg: 0, yz: yBranch, mg: 0, mz: mBranch, dg: dData.gan, dz: dData.zhi, hg: 0, hz: hBranch }
+            };
+        }
+
+        function getExactPillars(dt) {
+            try {
+                if (typeof Solar !== 'undefined' && typeof Lunar !== 'undefined') {
+                    const solar = Solar.fromDate(dt);
+                    const lunar = solar.getLunar();
+                    const bazi = lunar.getEightChar();
+                    // Lunar.js ถือว่าเวลาที่ส่งเข้าไปเป็นเวลาจีน (UTC+8) แต่ไทยเป็น UTC+7
+                    // เสาปี/เดือน (ตัดที่เวลาสารทจริง) จึงต้องแปลงเป็นเวลาจีนก่อน ไม่งั้นคลาด 1 ชั่วโมง
+                    // ส่วนเสาวัน/ยาม ใช้เวลาท้องถิ่นตามเดิม
+                    const chinaWallClock = new Date(dt.getTime() + dt.getTimezoneOffset() * 60000 + 8 * 3600000);
+                    const baziCN = Solar.fromDate(chinaWallClock).getLunar().getEightChar();
+
+                    const yGanZhiStr = baziCN.getYear();
+                    const mGanZhiStr = baziCN.getMonth();
+                    const dGanZhiStr = bazi.getDay();
+                    const hGanZhiStr = bazi.getTime();
+
+                    const stemsArr = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+                    const branchesArr = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+                    
+                    const getZhiIdx = (str) => branchesArr.indexOf(str.charAt(1));
+                    const getGanIdx = (str) => stemsArr.indexOf(str.charAt(0));
+
+                    return {
+                        year: getZhiIdx(yGanZhiStr), month: getZhiIdx(mGanZhiStr), day: getZhiIdx(dGanZhiStr), hour: getZhiIdx(hGanZhiStr),
+                        solarYear: solarYearOf(dt, getZhiIdx(yGanZhiStr)),
+                        bazi: {
+                            yg: getGanIdx(yGanZhiStr), yz: getZhiIdx(yGanZhiStr), 
+                            mg: getGanIdx(mGanZhiStr), mz: getZhiIdx(mGanZhiStr), 
+                            dg: getGanIdx(dGanZhiStr), dz: getZhiIdx(dGanZhiStr), 
+                            hg: getGanIdx(hGanZhiStr), hz: getZhiIdx(hGanZhiStr) 
+                        }
+                    };
+                }
+            } catch (e) { 
+                console.error("BaZi calculation failed, using fallback.", e);
+            }
+            return getPillarsFallback(dt);
+        }
+
+        function calculateAll() {
+            state.date = new Date(els.targetDate.value); 
+            state.birthDate = new Date(els.birthDate.value); 
+            state.gender = els.gender.value;
+            
+            state.calc.timeBazi = getExactPillars(state.date);
+            state.calc.personBazi = getExactPillars(state.birthDate);
+
+            // Kua ใช้ปีฮวงจุ้ยของวันเกิด (คนเกิดก่อน 立春 นับเป็นปีก่อนหน้า)
+            const by = state.calc.personBazi.solarYear;
+            let sum = by.toString().split('').reduce((a, b) => a + parseInt(b), 0);
+            while (sum > 9) sum = sum.toString().split('').reduce((a, b) => a + parseInt(b), 0);
+            let kua = state.gender === 'M' ? 11 - sum : 4 + sum;
+            if (kua > 9) kua -= 9; if (kua === 5) kua = state.gender === 'M' ? 2 : 8;
+            state.calc.kua = kua; els.kuaDisplay.innerText = kua;
+
+            const kuaGroups = { east: [1, 3, 4, 9], west: [2, 6, 7, 8] }; 
+            const dirGroups = { east: ['N', 'S', 'E', 'SE'], west: ['W', 'NW', 'SW', 'NE'] };
+            const group = kuaGroups.east.includes(kua) ? 'east' : 'west';
+            state.calc.auspiciousDirs = dirGroups[group]; 
+            state.calc.inauspiciousDirs = dirGroups[group === 'east' ? 'west' : 'east'];
+
+            const getAffliction = (branchIdx) => {
+                const clash = (branchIdx + 6) % 12; // 180 degrees opposite
+                const trines = [[8,0,4], [11,3,7], [2,6,10], [5,9,1]];
+                let ssStart = 0, ssEnd = 0, ssName = '';
+                if(trines[0].includes(branchIdx)) { ssStart = 135; ssEnd = 225; ssName = 'ใต้'; } 
+                else if(trines[1].includes(branchIdx)) { ssStart = 225; ssEnd = 315; ssName = 'ตะวันตก'; } 
+                else if(trines[2].includes(branchIdx)) { ssStart = 315; ssEnd = 45; ssName = 'เหนือ'; } 
+                else if(trines[3].includes(branchIdx)) { ssStart = 45; ssEnd = 135; ssName = 'ตะวันออก'; } 
+                return { clash, ssStart, ssEnd, ssName };
+            };
+            
+            ['year', 'month', 'day', 'hour'].forEach(p => { 
+                state.calc.afflictions[p] = getAffliction(state.calc.timeBazi[p]); 
+            });
+
+            // ปีของดาวจรรายปี เปลี่ยนที่เวลา 立春 จริง (ตรงกับเสาปีของ Lunar.js)
+            const actualYear = state.calc.timeBazi.solarYear;
+
+            let centerStar = 3 - ((actualYear - 2024) % 9); 
+            while (centerStar <= 0) centerStar += 9;
+            while (centerStar > 9) centerStar -= 9;
+
+            const luoShuPath = ['Center', 'NW', 'W', 'NE', 'S', 'N', 'SW', 'E', 'SE']; 
+            const yearStars = {};
+            let currentStar = centerStar;
+            luoShuPath.forEach(dir => { 
+                if (dir !== 'Center') yearStars[dir] = currentStar; 
+                currentStar = currentStar === 9 ? 1 : currentStar + 1; 
+            });
+            state.calc.stars = { year: yearStars, center: centerStar };
+
+            updateUI(); 
+            updateStatusBadge(); 
+            updateAdviceBox(state.currentDegree); 
+            draw2DTexture();
+        }
+
+        function updateUI() {
+            const renderPillar = (ganIdx, zhiIdx, labelTitle) => {
+                const g = ganData[ganIdx]; const z = zhiData[zhiIdx];
+                return `
+                    <div class="flex flex-col items-center p-1.5 bg-slate-900/60 rounded-lg border border-slate-700/80 shadow-sm relative overflow-hidden group">
+                        <div class="absolute inset-0 opacity-10 bg-gradient-to-b from-transparent to-black pointer-events-none"></div>
+                        <span class="text-[9px] md:text-[10px] text-slate-400 mb-1 tracking-wider relative z-10">${labelTitle}</span>
+                        <div class="text-xl md:text-2xl font-bold leading-none ${g.color} cn-char drop-shadow-md relative z-10">${g.char}</div>
+                        <div class="text-[9px] ${g.color} opacity-80 mb-0.5 relative z-10">${g.th} (${g.el})</div>
+                        <div class="w-[80%] h-px bg-slate-700/50 my-1 relative z-10"></div>
+                        <div class="text-xl md:text-2xl font-bold leading-none ${z.color} cn-char drop-shadow-md relative z-10">${z.char}</div>
+                        <div class="text-[9px] ${z.color} opacity-80 relative z-10">${z.th} (${z.el})</div>
+                    </div>`;
+            };
+
+            const t = state.calc.timeBazi.bazi;
+            els.timeBaziPanel.innerHTML = renderPillar(t.yg, t.yz, 'ปี') + renderPillar(t.mg, t.mz, 'เดือน') + renderPillar(t.dg, t.dz, 'วัน') + renderPillar(t.hg, t.hz, 'ยาม');
+            
+            const p = state.calc.personBazi.bazi;
+            els.personBaziPanel.innerHTML = renderPillar(p.yg, p.yz, 'ปี') + renderPillar(p.mg, p.mz, 'เดือน') + renderPillar(p.dg, p.dz, 'วัน') + renderPillar(p.hg, p.hz, 'ยาม');
+
+            let sumHtml = '';
+            Object.keys(state.toggles).forEach(k => {
+                if (!state.toggles[k]) return;
+                const aff = state.calc.afflictions[k];
+                const label = k==='year'?'ปี':k==='month'?'เดือน':k==='day'?'วัน':'ยาม';
+                const currentBranchIdx = state.calc.timeBazi[k];
+                const bName = zhiData[currentBranchIdx].th; 
+                
+                const clashBranchData = zhiData[aff.clash];
+
+                sumHtml += `
+                    <div class="border border-red-900/40 pb-2 mb-2 bg-red-950/20 px-2 py-1.5 rounded-lg shadow-sm">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-red-400 font-bold text-[11px] md:text-[12px] tracking-wide">▲ ทิศร้าย ${label}${bName}</span>
+                        </div>
+                        <div class="pl-2 border-l-2 border-red-900/50 space-y-1 mt-1.5 text-[10px] md:text-[11px]">
+                           <div class="grid grid-cols-[30%_70%] gap-1">
+                               <span class="text-red-300/80">ทิศแตก(ชง):</span> 
+                               <span class="text-red-200">ทิศ${clashBranchData.th} (${clashBranchData.name.split(' ')[0]})</span>
+                           </div>
+                           <div class="grid grid-cols-[30%_70%] gap-1">
+                               <span class="text-orange-400/80">ทิศอสูร:</span> 
+                               <span class="text-orange-200">ฝั่งทิศ${aff.ssName}</span>
+                           </div>
+                           
+                           <div class="mt-1.5 pt-1.5 border-t border-red-900/30">
+                               <div class="text-[9px] text-red-400/70 mb-0.5">ผลกระทบหากกระทบกระเทือนทิศแตก:</div>
+                               <div class="grid grid-cols-[30%_70%] gap-1 text-[9px] md:text-[10px] leading-tight">
+                                   <span class="text-slate-400">อวัยวะ/โรค:</span> <span class="text-slate-200">${clashBranchData.impact.organ}</span>
+                                   <span class="text-slate-400">บุคคล:</span> <span class="text-slate-200">${clashBranchData.impact.person}</span>
+                                   <span class="text-slate-400">เหตุการณ์:</span> <span class="text-slate-200">${clashBranchData.impact.event}</span>
+                               </div>
+                           </div>
+                        </div>
+                    </div>`;
+            });
+            els.afflictionSummary.innerHTML = sumHtml || '<div class="text-emerald-400 text-center py-4 bg-emerald-900/10 rounded-lg border border-emerald-900/30">✨ ไม่มีทิศร้ายจร<br>(หรือปิดการเช็คไว้)</div>';
+        }
+
+        function updateStatusBadge() {
+            // ไม่ซ่อนกล่องสถานะอีกต่อไปแม้จะอยู่ในโหมด AR
+            els.statusBadge.parentElement.style.display = 'flex';
+            els.statusBadge.style.opacity = '1';
+
+            let modeName = "", legendHtml = "", activeDetails = [];
+            if (state.calc && state.calc.timeBazi) {
+                if (state.toggles.year) activeDetails.push(`ปี${zhiData[state.calc.timeBazi.year].th}`);
+                if (state.toggles.month) activeDetails.push(`เดือน${zhiData[state.calc.timeBazi.month].th}`);
+                if (state.toggles.day) activeDetails.push(`วัน${zhiData[state.calc.timeBazi.day].th}`);
+                if (state.toggles.hour) activeDetails.push(`ยาม${zhiData[state.calc.timeBazi.hour].th}`);
+            }
+            let activeText = activeDetails.length > 0 ? `(เช็ค: ${activeDetails.join(', ')})` : '(ปิดการเช็คกาลเวลา)';
+
+            // เปลี่ยนไปใช้ clamp() เพื่อให้ฟอนต์ลื่นไหลบนจอแท็บเล็ต
+            if (state.is64GuaMode || state.viewMode === '64GUA') {
+                modeName = `<span class="text-indigo-400 font-bold text-[clamp(14px,3.5vmin,24px)]">📍 ผัง 64 ข่วย (Xuan Kong Da Gua)</span>`;
+                legendHtml = `<div class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 mt-1">ใช้ตรวจสอบความหมายของข่วย และตั้งหาฤกษ์ยามมงคลระดับสูง</div>`;
+            } else if (state.viewMode === 'KUA') {
+                modeName = `<span class="text-emerald-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: เฉพาะทิศมงคลบุคคล (8 Mansions)</span>`;
+                legendHtml = `<div class="flex justify-center gap-4 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1.5 text-emerald-400"><span class="w-3 h-3 md:w-4 md:h-4 border-2 border-emerald-500 rounded-sm"></span>ทิศมงคล</span><span class="flex items-center gap-1.5 text-red-400"><span class="w-3 h-3 md:w-4 md:h-4 border-2 border-red-500 rounded-sm"></span>ทิศร้าย</span></div>`;
+            } else if (state.viewMode === 'TIME') {
+                modeName = `<span class="text-yellow-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: แสดงทิศร้ายกาลเวลา</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">${activeText}</span>`;
+                legendHtml = `<div class="flex justify-center gap-4 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1.5 text-red-400"><span class="w-3 h-3 md:w-4 md:h-4 bg-red-600 rounded-sm"></span>ทิศแตก(ชง)</span><span class="flex items-center gap-1.5 text-orange-400"><span class="w-4 h-1.5 md:w-6 md:h-2 bg-orange-500 rounded-full"></span>ทิศอสูร</span></div>`;
+            } else if (state.viewMode === 'STARS') {
+                modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: ดาวเหินประจำปี</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">(ปี${state.calc.timeBazi.solarYear} นับจาก 立春)</span>`;
+                legendHtml = `<div class="flex justify-center gap-3 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1 text-emerald-400">⭐มงคล</span><span class="flex items-center gap-1 text-red-400">⭐ร้าย</span><span class="flex items-center gap-1 text-yellow-400">⭐วิบัติ</span></div>`;
+            }
+            els.statusBadge.innerHTML = `<div class="flex flex-col text-yellow-500 mb-1">${modeName}</div>${legendHtml}`;
+        }
+
+        function setActiveMenuButton() {
+            els.layerBtns.forEach(b => { 
+                b.classList.remove('active'); 
+                if (b.getAttribute('data-layer') === state.viewMode) b.classList.add('active'); 
+            });
+            if(state.viewMode === '64GUA') { 
+                els.quickLayerBtn.classList.replace('border-indigo-500', 'border-yellow-500'); 
+                els.quickLayerBtn.classList.replace('text-indigo-400', 'text-yellow-400'); 
+            } else { 
+                els.quickLayerBtn.classList.replace('border-yellow-500', 'border-indigo-500'); 
+                els.quickLayerBtn.classList.replace('text-yellow-400', 'text-indigo-400'); 
+            }
+        }
+
+        els.layerBtns.forEach(btn => { 
+            btn.addEventListener('click', (e) => { 
+                state.viewMode = e.currentTarget.getAttribute('data-layer'); 
+                state.is64GuaMode = (state.viewMode === '64GUA'); 
+                setActiveMenuButton(); 
+                updateStatusBadge(); 
+                draw2DTexture(); 
+                updateAdviceBox(state.currentDegree); 
+            }); 
+        });
+        
+        els.quickLayerBtn.addEventListener('click', () => {
+            if (state.viewMode === 'TIME') { state.viewMode = 'KUA'; state.is64GuaMode = false; } 
+            else if (state.viewMode === 'KUA') { state.viewMode = 'STARS'; state.is64GuaMode = false; } 
+            else if (state.viewMode === 'STARS') { state.is64GuaMode = true; state.viewMode = '64GUA'; } 
+            else { state.is64GuaMode = false; state.viewMode = 'TIME'; }
+            setActiveMenuButton(); updateStatusBadge(); draw2DTexture(); updateAdviceBox(state.currentDegree);
+        });
+
+        els.tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                els.tabBtns.forEach(b => { b.classList.remove('text-yellow-400', 'border-yellow-500'); b.classList.add('text-slate-400', 'border-transparent'); });
+                e.target.classList.remove('text-slate-400', 'border-transparent'); e.target.classList.add('text-yellow-400', 'border-yellow-500');
+                document.getElementById('tab-config').classList.add('hidden'); 
+                document.getElementById('tab-analysis').classList.add('hidden');
+                document.getElementById(`tab-${e.target.getAttribute('data-tab')}`).classList.remove('hidden');
+                if(e.target.getAttribute('data-tab') === 'analysis') {
+                    document.getElementById('tab-analysis').classList.add('flex');
+                } else {
+                    document.getElementById('tab-analysis').classList.remove('flex');
+                }
+            });
+        });
+
+        els.menuBtn.addEventListener('click', () => { els.sidebar.classList.add('open'); });
+        els.closeSidebarBtn.addEventListener('click', () => { els.sidebar.classList.remove('open'); });
+
+        ['togYear', 'togMonth', 'togDay', 'togHour'].forEach(id => { 
+            els[id].addEventListener('change', (e) => { 
+                state.toggles[id.replace('tog', '').toLowerCase()] = e.target.checked; 
+                updateUI(); updateStatusBadge(); 
+                draw2DTexture(); 
+                updateAdviceBox(state.currentDegree); 
+            }); 
+        });
+
+        const scene = new THREE.Scene(); 
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3)); 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas3dContainer').appendChild(renderer.domElement);
+
+        const canvas2d = document.createElement('canvas');
+        const ctx = canvas2d.getContext('2d');
+        // จอเล็กใช้ texture 2048 (ใช้หน่วยความจำ 16MB แทน 64MB) จอใหญ่ใช้ 4096
+        const screenPx = Math.max(window.innerWidth, window.innerHeight) * Math.min(window.devicePixelRatio || 1, 3);
+        const texSize = Math.min(renderer.capabilities.maxTextureSize || 4096, screenPx > 2200 ? 4096 : 2048);
+        canvas2d.width = texSize; 
+        canvas2d.height = texSize;
+        const texture = new THREE.CanvasTexture(canvas2d); 
+        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        texture.minFilter = THREE.LinearMipmapLinearFilter; 
+        texture.magFilter = THREE.LinearFilter;
+
+        const outerRadius = 5; const innerRadius = 0.05; 
+        const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 128);
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+        const luopanMesh = new THREE.Mesh(geometry, material); 
+        luopanMesh.rotation.x = -Math.PI / 2; 
+        scene.add(luopanMesh);
+
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2, transparent: true, opacity: 0.6 });
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([ 
+            new THREE.Vector3(0, -5, 0.05), new THREE.Vector3(0, 5, 0.05), 
+            new THREE.Vector3(-5, 0, 0.05), new THREE.Vector3(5, 0, 0.05) 
+        ]);
+        const crosshair = new THREE.LineSegments(lineGeo, lineMat); 
+        crosshair.rotation.x = -Math.PI / 2; 
+        scene.add(crosshair);
+        
+        // ชั้นไฮไลต์ทิศชงที่กะพริบ: วาดครั้งเดียวลง texture เล็ก แล้วเปลี่ยนแค่ความโปร่งใสทุกเฟรม
+        // (เดิมวาด texture 4096×4096 ใหม่ทุกเฟรม ทำให้มือถือร้อนและกระตุก)
+        const pulseCanvas = document.createElement('canvas');
+        pulseCanvas.width = pulseCanvas.height = 1024;
+        const pulseCtx = pulseCanvas.getContext('2d');
+        const pulseTexture = new THREE.CanvasTexture(pulseCanvas);
+        const pulseMaterial = new THREE.MeshBasicMaterial({ map: pulseTexture, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
+        const pulseMesh = new THREE.Mesh(new THREE.RingGeometry(innerRadius, outerRadius, 128), pulseMaterial);
+        pulseMesh.position.z = 0.01; pulseMesh.renderOrder = 2; pulseMesh.visible = false;
+        luopanMesh.add(pulseMesh); // หมุนและย่อขยายไปพร้อมจาน
+        let hasPulse = false;
+
+        // ลูกศรชี้ทิศที่ขอบบนของจาน (ไม่หมุน) ใช้อ่านองศาเมื่อกล่ององศาย้ายไปไว้ข้างจาน
+        const markerShape = new THREE.Shape();
+        markerShape.moveTo(0, 4.72); markerShape.lineTo(-0.2, 5.12); markerShape.lineTo(0.2, 5.12); markerShape.closePath();
+        const topMarker = new THREE.Mesh(new THREE.ShapeGeometry(markerShape), new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide }));
+        topMarker.rotation.x = -Math.PI / 2; topMarker.position.y = 0.08; topMarker.renderOrder = 3;
+        scene.add(topMarker);
+
+        const centerRingGeo = new THREE.RingGeometry(0.3, 0.35, 64);
+        const centerRingMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+        const centerRing = new THREE.Mesh(centerRingGeo, centerRingMat); 
+        centerRing.rotation.x = -Math.PI / 2; 
+        centerRing.position.y = 0.05; 
+        scene.add(centerRing);
+
+        let floorPlanMesh = null;
+        let baseFpWidth = 10;
+        let baseFpHeight = 10;
+
+        els.fpBtn.addEventListener('click', () => els.fpInput.click());
+        
+        els.fpInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const fpTexture = new THREE.Texture(img);
+                    fpTexture.needsUpdate = true;
+                    
+                    const aspect = img.width / img.height;
+                    baseFpHeight = 10; 
+                    baseFpWidth = 10 * aspect;
+                    
+                    if (floorPlanMesh) {
+                        scene.remove(floorPlanMesh);
+                        floorPlanMesh.geometry.dispose();
+                        floorPlanMesh.material.dispose();
+                    }
+                    
+                    const fpGeo = new THREE.PlaneGeometry(baseFpWidth, baseFpHeight);
+                    const fpMat = new THREE.MeshBasicMaterial({ 
+                        map: fpTexture, 
+                        transparent: true, 
+                        opacity: 0.5,
+                        side: THREE.DoubleSide
+                    });
+                    floorPlanMesh = new THREE.Mesh(fpGeo, fpMat);
+                    floorPlanMesh.rotation.x = -Math.PI / 2;
+                    floorPlanMesh.position.y = -0.1; // Place slightly below the Luopan
+                    scene.add(floorPlanMesh);
+                    
+                    els.fpScale.value = 1;
+                    els.fpOpacity.value = 0.5;
+                    els.fpRotation.value = 0;
+                    els.fpOffsetX.value = 0;
+                    els.fpOffsetY.value = 0;
+                    document.getElementById('fpScaleVal').innerText = '1.0x';
+                    document.getElementById('fpOpacityVal').innerText = '50%';
+                    document.getElementById('fpRotationVal').innerText = '0°';
+                    document.getElementById('fpOffsetXVal').innerText = '0.0';
+                    document.getElementById('fpOffsetYVal').innerText = '0.0';
+                    els.fpControls.classList.remove('hidden');
+
+                    /* ปรับความโปร่งใสของจานหล่อแกอัตโนมัติให้เหลือ 60% เมื่อโหลดแปลนเสร็จ */
+                    els.luopanOpacity.value = 0.6;
+                    els.luopanOpacity.dispatchEvent(new Event('input'));
+
+                    showToast("โหลดแปลนบ้านสำเร็จ");
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        els.fpScale.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('fpScaleVal').innerText = val.toFixed(1) + 'x';
+            if(floorPlanMesh) floorPlanMesh.scale.set(val, val, 1);
+        });
+
+        els.fpOpacity.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('fpOpacityVal').innerText = Math.round(val * 100) + '%';
+            if(floorPlanMesh) floorPlanMesh.material.opacity = val;
+        });
+
+        els.fpRotation.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('fpRotationVal').innerText = val + '°';
+            if(floorPlanMesh) floorPlanMesh.rotation.z = -val * (Math.PI / 180);
+        });
+
+        els.fpOffsetX.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('fpOffsetXVal').innerText = val.toFixed(1);
+            if(floorPlanMesh) floorPlanMesh.position.x = val;
+        });
+
+        els.fpOffsetY.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('fpOffsetYVal').innerText = val.toFixed(1);
+            if(floorPlanMesh) floorPlanMesh.position.z = val;
+        });
+
+        els.fpResetBtn.addEventListener('click', () => {
+            if(!floorPlanMesh) return;
+            els.fpScale.value = 1; els.fpScale.dispatchEvent(new Event('input'));
+            els.fpOpacity.value = 0.5; els.fpOpacity.dispatchEvent(new Event('input'));
+            els.fpRotation.value = 0; els.fpRotation.dispatchEvent(new Event('input'));
+            els.fpOffsetX.value = 0; els.fpOffsetX.dispatchEvent(new Event('input'));
+            els.fpOffsetY.value = 0; els.fpOffsetY.dispatchEvent(new Event('input'));
+            showToast("รีเซ็ตค่าแปลนบ้านแล้ว");
+        });
+
+        els.luopanScale.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('luopanScaleVal').innerText = val.toFixed(1) + 'x';
+            if(luopanMesh) luopanMesh.scale.set(val, val, 1);
+            if(centerRing) centerRing.scale.set(val, val, 1);
+            if(crosshair) crosshair.scale.set(val, val, 1);
+            if(topMarker) topMarker.scale.set(val, val, 1);
+        });
+
+        els.luopanOpacity.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('luopanOpacityVal').innerText = Math.round(val * 100) + '%';
+            if(luopanMesh) luopanMesh.material.opacity = val;
+        });
+
+        els.fpRemoveBtn.addEventListener('click', () => {
+            if(floorPlanMesh) {
+                scene.remove(floorPlanMesh);
+                floorPlanMesh.geometry.dispose();
+                floorPlanMesh.material.dispose();
+                floorPlanMesh = null;
+            }
+            els.fpInput.value = '';
+            els.fpControls.classList.add('hidden');
+            showToast("ลบแปลนบ้านเรียบร้อยแล้ว");
+        });
+
+        // ===== Responsive: จัดขนาดจานให้พอดีจอทุกขนาด และบอกตำแหน่งให้ CSS วางกล่องรอบจาน =====
+        // จอแนวตั้ง: จานกว้างเกือบเต็มจอ กล่ององศาอยู่เหนือจาน กล่องสถานะ/แถบเลื่อนอยู่ใต้จาน
+        // จอแนวนอน (กว้าง ≥ 1.25 เท่าของสูง): จานสูงเกือบเต็มจอ กล่องย้ายไปไว้ซ้าย-ขวาของจาน
+        const DIAL_WORLD_RADIUS = 5;
+        let dialPx = 0;
+        function onWindowResize() {
+            const container = document.getElementById('canvas3dContainer');
+            if(!container || container.clientWidth === 0) return;
+            const width = container.clientWidth, height = container.clientHeight;
+            const aspect = width / height;
+            const side = aspect >= 1.25;
+            document.body.classList.toggle('side-layout', side);
+
+            if (side) {
+                const sideMin = Math.min(460, Math.max(220, width * 0.24));
+                dialPx = Math.min(height * 0.94, width - 2 * sideMin);
+            } else {
+                const reserve = Math.min(270, height * 0.24); // พื้นที่บน/ล่างสำหรับกล่ององศา คำเตือน และกล่องสถานะ
+                dialPx = Math.min(width * 0.94, height - 2 * reserve);
+            }
+            dialPx = Math.max(dialPx, Math.min(width, height) * 0.5);
+
+            /* จานหล่อแกอยู่กึ่งกลางจอ: ตั้งความสูงกล้องให้รัศมีจานเท่ากับ dialPx/2 พิกเซล */
+            const fovRad = (camera.fov / 2) * (Math.PI / 180);
+            const pxPerUnit = (dialPx / 2) / DIAL_WORLD_RADIUS;
+            const camY = ((height / 2) / pxPerUnit) / Math.tan(fovRad);
+            camera.aspect = aspect;
+            camera.position.set(0, camY, 0);
+            camera.lookAt(0, 0, 0);
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+
+            const root = document.documentElement.style;
+            const dialTop = height / 2 - (dialPx / 2) * 0.96; // ขอบวงองศา (0.96 ของรัศมี)
+            root.setProperty('--deg-bottom', Math.min(height - dialTop + 14, height - 70) + 'px');
+            root.setProperty('--side-w', Math.max(0, (width - dialPx) / 2) + 'px');
+            const fab = document.getElementById('fabLeft');
+            const fabBottom = fab ? fab.getBoundingClientRect().bottom : 170;
+            root.setProperty('--side-top', (fabBottom + 14) + 'px');
+        }
+        window.addEventListener('resize', onWindowResize);
+        window.addEventListener('orientationchange', () => setTimeout(onWindowResize, 200));
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', onWindowResize);
+        onWindowResize();
+
+        function draw2DTexture() {
+            const size = texSize; const cx = size / 2; const cy = size / 2;
+            ctx.clearRect(0, 0, size, size);
+            hasPulse = false;
+            const rTicks = size * 0.48; const rBrn = size * 0.38; 
+            const rDir = size * 0.28; const rStar = size * 0.16; const rTai = size * 0.08;
+
+            ctx.save(); ctx.translate(cx, cy);
+            
+            const drawSeg = (rIn, rOut, sDeg, eDeg, fill, stroke, lWidth = 2) => {
+                ctx.beginPath(); 
+                ctx.arc(0, 0, rOut, (sDeg - 90) * Math.PI / 180, (eDeg - 90) * Math.PI / 180);
+                ctx.arc(0, 0, rIn, (eDeg - 90) * Math.PI / 180, (sDeg - 90) * Math.PI / 180, true); 
+                ctx.closePath();
+                if (fill !== 'transparent') { ctx.fillStyle = fill; ctx.fill(); }
+                if (stroke !== 'transparent') { ctx.strokeStyle = stroke; ctx.lineWidth = lWidth; ctx.stroke(); }
+            };
+
+            const drawTxt = (txt, radius, deg, color, font, outline = 'transparent', lw = 2) => {
+                ctx.save(); 
+                ctx.rotate((deg - 90) * Math.PI / 180); 
+                ctx.translate(radius, 0); 
+                ctx.rotate(Math.PI / 2); 
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font;
+                if(outline !== 'transparent') { 
+                    ctx.strokeStyle = outline; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.strokeText(txt, 0, 0); 
+                }
+                ctx.fillStyle = color; ctx.fillText(txt, 0, 0); 
+                ctx.restore();
+            };
+
+            const baseFontSize = size * 0.035; const innerFontSize = baseFontSize * 0.5;
+
+            let baseBgColor = isARTransparent ? 'rgba(15, 23, 42, 0.6)' : '#0f172a';
+            let darkBgColor = isARTransparent ? 'rgba(10, 15, 29, 0.6)' : '#0a0f1d';
+
+            if (state.is64GuaMode || state.viewMode === '64GUA') {
+                ctx.beginPath(); ctx.arc(0,0, rTicks, 0, 2*Math.PI); ctx.fillStyle = darkBgColor; ctx.fill(); 
+                const ringColor = 'rgba(212,175,55,0.4)';
+                
+                for(let i = 0; i < 64; i++) {
+                    drawSeg(rDir, rTicks, i*(360/64), (i+1)*(360/64), 'transparent', ringColor, 1.5);
+                    const hexagramUnicode = String.fromCharCode(0x4DC0 + FUXI_RING[i] - 1);
+                    drawTxt(hexagramUnicode, rDir + (rTicks-rDir)*0.6, i*(360/64) + (360/128), '#fcd34d', `900 ${baseFontSize*1.5}px Arial`, 'transparent');
+                }
+                // เส้นแบ่งกลุ่ม 8 ข่วย (ทุก 45° เริ่มที่ทิศเหนือ)
+                for(let i = 0; i < 8; i++) drawSeg(rDir, rTicks, i*45, i*45, 'transparent', 'rgba(212,175,55,0.9)', 4);
+                for(let i = 0; i < 8; i++) {
+                    drawSeg(rStar, rDir, i*45-22.5, i*45+22.5, 'transparent', ringColor, 2);
+                    drawTxt(EARLY_HEAVEN_TRIGRAMS[i], rStar + (rDir-rStar)*0.5, i*45, '#d4af37', `900 ${baseFontSize*2}px Arial`, 'transparent');
+                }
+                drawSeg(rTai, rStar, 0, 360, 'transparent', ringColor, 2); 
+                drawTxt("ผัง 64 ข่วย", rTai * 1.6, 0, '#ffffff', `600 ${baseFontSize*0.6}px Prompt`, 'rgba(0,0,0,0.8)', 6);
+            } else {
+                ctx.beginPath(); ctx.arc(0,0, rTicks, 0, 2*Math.PI); ctx.fillStyle = baseBgColor; ctx.fill(); 
+                const ringColor = 'rgba(212,175,55,0.4)';
+                
+                for(let i = 0; i < 24; i++) drawSeg(rBrn, rTicks, i*15-7.5, i*15+7.5, 'transparent', ringColor, 2);
+                for(let i = 0; i < 12; i++) drawSeg(rDir, rBrn, i*30-15, i*30+15, 'transparent', ringColor, 2);
+                for(let i = 0; i < 8; i++) drawSeg(rStar, rDir, i*45-22.5, i*45+22.5, 'transparent', ringColor, 2);
+                drawSeg(rTai, rStar, 0, 360, 'transparent', ringColor, 2); 
+                
+                const vm = state.viewMode; 
+                const activeSuiPos = []; let activeSanShas = [];
+                if (vm === 'TIME') { 
+                    Object.keys(state.toggles).filter(k => state.toggles[k]).forEach(p => { 
+                        const aff = state.calc.afflictions[p]; 
+                        activeSuiPos.push({ branch: aff.clash, p: p }); 
+                        activeSanShas.push(aff); 
+                    }); 
+                }
+
+                mountains24.forEach((m) => { 
+                    const txt = m.name.split(' '); 
+                    drawTxt(txt[0], rBrn + (rTicks - rBrn) * 0.70, m.deg, '#cbd5e1', `bold ${baseFontSize * 0.65}px Arial`, 'transparent'); 
+                    drawTxt(txt[1], rBrn + (rTicks - rBrn) * 0.35, m.deg, '#ffffff', `600 ${baseFontSize * 0.9}px Prompt`, 'transparent'); 
+                });
+
+                // ไฮไลต์ทิศชง: ขอบแดงวาดในจานหลัก ส่วนพื้นสีแดงที่กะพริบอยู่ในชั้น pulseMesh
+                const pc = pulseCtx, ps = pulseCanvas.width / size;
+                pc.setTransform(1, 0, 0, 1, 0, 0); pc.clearRect(0, 0, pulseCanvas.width, pulseCanvas.height);
+                pc.setTransform(ps, 0, 0, ps, pulseCanvas.width / 2, pulseCanvas.height / 2);
+                hasPulse = false;
+                for (let i = 0; i < 12; i++) {
+                    const clashData = activeSuiPos.filter(a => a.branch === i);
+                    if (clashData.length > 0 && vm === 'TIME') {
+                        drawSeg(rDir, rBrn, i*30-15, i*30+15, 'transparent', '#ef4444', 4);
+                        pc.beginPath();
+                        pc.arc(0, 0, rBrn, (i*30-15-90) * Math.PI / 180, (i*30+15-90) * Math.PI / 180);
+                        pc.arc(0, 0, rDir, (i*30+15-90) * Math.PI / 180, (i*30-15-90) * Math.PI / 180, true);
+                        pc.closePath(); pc.fillStyle = 'rgb(239, 68, 68)'; pc.fill();
+                        hasPulse = true;
+                    }
+                    drawTxt(branches[i].char, rDir + (rBrn - rDir) * 0.70, i * 30, '#ffffff', `bold ${innerFontSize * 1.3}px Arial`, 'transparent');
+                    drawTxt(branches[i].name.split(' ')[0], rDir + (rBrn - rDir) * 0.35, i * 30, '#ffffff', `600 ${innerFontSize * 2.3}px Prompt`, 'transparent');
+                }
+
+                Object.keys(dirs8).forEach(k => {
+                    const d = dirs8[k]; let mid = (d.start + d.end) / 2; if (d.start > d.end) mid = (d.start + d.end + 360) / 2;
+                    let engColor = '#d4af37'; let thColor = '#94a3b8';
+                    if (vm === 'KUA') {
+                        if (state.calc.auspiciousDirs.includes(k)) { 
+                            engColor = '#10b981'; thColor = '#10b981'; 
+                            drawSeg(rStar, rDir, d.start, d.end, 'rgba(16, 185, 129, 0.15)', '#10b981', 4); 
+                        } 
+                        else if (state.calc.inauspiciousDirs.includes(k)) { 
+                            engColor = '#ef4444'; thColor = '#ef4444'; 
+                            drawSeg(rStar, rDir, d.start, d.end, 'rgba(239, 68, 68, 0.15)', '#ef4444', 4); 
+                        }
+                    }
+                    drawTxt(k, rStar + (rDir - rStar) * 0.72, mid, engColor, `900 ${innerFontSize * 1.75}px Arial`, 'transparent');
+                    const thSize = d.name.length > 7 ? innerFontSize * 1.15 : innerFontSize * 1.6; 
+                    drawTxt(d.name, rStar + (rDir - rStar) * 0.28, mid, thColor, `500 ${thSize}px Prompt`, 'transparent');
+                });
+
+                if (vm === 'STARS') {
+                    Object.keys(dirs8).forEach(k => {
+                        const d = dirs8[k]; let mid = (d.start + d.end) / 2; if (d.start > d.end) mid = (d.start + d.end + 360) / 2;
+                        const starNum = state.calc.stars.year[k];
+                        let sCol = '#94a3b8'; let bgCol = 'rgba(148, 163, 184, 0.15)'; 
+                        if ([9, 1, 8].includes(starNum)) { sCol = '#4ade80'; bgCol = 'rgba(74, 222, 128, 0.15)'; } 
+                        if ([2, 7, 3].includes(starNum)) { sCol = '#f87171'; bgCol = 'rgba(248, 113, 113, 0.15)'; } 
+                        if (starNum === 5) { sCol = '#facc15'; bgCol = 'rgba(250, 204, 21, 0.15)'; } 
+                        
+                        drawSeg(rTai, rStar, d.start, d.end, bgCol, 'transparent'); 
+                        const starRad = rTai + (rStar - rTai) * 0.5;
+                        ctx.save(); 
+                        ctx.rotate((mid - 90) * Math.PI / 180); 
+                        ctx.translate(starRad, 0); 
+                        ctx.rotate(Math.PI / 2);
+                        ctx.beginPath(); 
+                        ctx.arc(0, 0, innerFontSize * 1.8, 0, 2*Math.PI); 
+                        ctx.strokeStyle = sCol; ctx.lineWidth = 3; ctx.fillStyle = '#0f172a'; ctx.fill(); ctx.stroke();
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = sCol; 
+                        ctx.font = `900 ${innerFontSize * 2.2}px Arial`; 
+                        ctx.fillText(starNum, 0, 0); 
+                        ctx.restore();
+                    });
+                }
+
+                if (vm === 'TIME') {
+                    activeSanShas.forEach(aff => {
+                        ctx.beginPath(); 
+                        const ssSRad = (aff.ssStart - 90) * Math.PI / 180; 
+                        let ssERad = (aff.ssEnd - 90) * Math.PI / 180;
+                        if (ssERad < ssSRad) ssERad += 2 * Math.PI; 
+                        ctx.arc(0, 0, rTicks - 6, ssSRad, ssERad); 
+                        ctx.strokeStyle = '#f97316'; ctx.lineWidth = 12; ctx.stroke();
+                    });
+                }
+            }
+            
+            ctx.beginPath(); ctx.arc(0, 0, rTai, 0, 2*Math.PI); ctx.fillStyle = baseBgColor; ctx.fill(); 
+            const tj = rTai * 0.8;
+            ctx.beginPath(); ctx.arc(0, 0, tj, Math.PI/2, Math.PI*1.5); ctx.fillStyle = '#ffffff'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, 0, tj, Math.PI*1.5, Math.PI/2); ctx.fillStyle = '#000000'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, -tj/2, tj/2, 0, 2*Math.PI); ctx.fillStyle = '#ffffff'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, tj/2, tj/2, 0, 2*Math.PI); ctx.fillStyle = '#000000'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, -tj/2, tj/6, 0, 2*Math.PI); ctx.fillStyle = '#000000'; ctx.fill();
+            ctx.beginPath(); ctx.arc(0, tj/2, tj/6, 0, 2*Math.PI); ctx.fillStyle = '#ffffff'; ctx.fill();
+            ctx.restore();
+
+            texture.needsUpdate = true;
+            pulseTexture.needsUpdate = true;
+            pulseMesh.visible = hasPulse;
+        }
+
+        function getDirectionData(deg) { 
+            for (let k in dirs8) { 
+                let d = dirs8[k]; 
+                if (d.start > d.end) { 
+                    if (deg >= d.start || deg <= d.end) return { code: k, name: d.name }; 
+                } else { 
+                    if (deg >= d.start && deg <= d.end) return { code: k, name: d.name }; 
+                } 
+            } 
+            return { code: 'N', name: 'เหนือ' }; 
+        }
+
+        function updateAdviceBox(deg) {
+            const dirData = getDirectionData(deg); const dirCode = dirData.code; 
+            els.dirLabel.innerText = `${dirData.name} (${dirCode})`; 
+            els.degreeValue.innerText = deg.toFixed(1) + '°';
+            let title = "", remedy = "", hasBad = false;
+
+            if (state.is64GuaMode || state.viewMode === '64GUA') {
+                const guaWidth = 5.625; const margin = 0.5; const boundaryDistance = deg % guaWidth; 
+                const isKongWang = boundaryDistance <= margin || (guaWidth - boundaryDistance) <= margin;
+                if (isKongWang) {
+                    title = "⚠️ ระวัง! ทับเส้นแบ่งข่วย (เส้นมรณะ)"; remedy = "พลังงานปะทะกันรุนแรง ห้ามเคาะเจาะทุบ ตั้งประตู โต๊ะทำงาน ทับองศานี้เด็ดขาด";
+                    els.dirAdvice.classList.replace('border-slate-300', 'border-red-500'); 
+                    els.dirAdvice.classList.replace('border-indigo-500', 'border-red-500'); 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-red-600';
+                } else {
+                    const ringIndex = Math.floor(deg / guaWidth) % 64;
+                    const guaData = gua64Info[FUXI_RING[ringIndex] - 1].split('|');
+                    title = `☯️ ข่วย${guaData[0]}`; remedy = guaData[1];
+                    els.dirAdvice.classList.replace('border-red-500', 'border-indigo-500'); 
+                    els.dirAdvice.classList.replace('border-slate-300', 'border-indigo-500'); 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-indigo-600';
+                }
+            } else if (state.viewMode === 'STARS') {
+                const starNum = state.calc.stars.year[dirCode];
+                if (starNum) {
+                    title = starsInfo[starNum].desc; remedy = starsInfo[starNum].remedy;
+                    if(starsInfo[starNum].type === 'fatal') { 
+                        els.dirAdvice.classList.replace('border-slate-300', 'border-red-500'); 
+                        els.dirAdvice.classList.replace('border-indigo-500', 'border-red-500'); 
+                        els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-red-600'; hasBad = true; 
+                    } else if (starsInfo[starNum].type === 'bad') { 
+                        els.dirAdvice.classList.replace('border-slate-300', 'border-orange-500'); 
+                        els.dirAdvice.classList.replace('border-indigo-500', 'border-orange-500'); 
+                        els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-orange-600'; 
+                    } else { 
+                        els.dirAdvice.classList.replace('border-red-500', 'border-slate-300'); 
+                        els.dirAdvice.classList.replace('border-orange-500', 'border-slate-300'); 
+                        els.dirAdvice.classList.replace('border-indigo-500', 'border-slate-300'); 
+                        els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-emerald-600'; 
+                    }
+                }
+            } else if (state.viewMode === 'KUA') {
+                if (state.calc.auspiciousDirs.includes(dirCode)) { 
+                    title = "ทิศมงคลประจำตัว"; remedy = "ส่งเสริมโชคลาภ สุขภาพ ความสัมพันธ์"; 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-emerald-600'; 
+                } else { 
+                    title = "ทิศร้ายประจำตัว"; remedy = "หลีกเลี่ยงการหันหัวเตียง หรือโต๊ะทำงาน"; 
+                    els.dirAdvice.classList.replace('border-slate-300', 'border-red-500'); 
+                    els.dirAdvice.classList.replace('border-indigo-500', 'border-red-500'); 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-red-600'; hasBad = true; 
+                }
+                if(!hasBad) { 
+                    els.dirAdvice.classList.replace('border-red-500', 'border-slate-300'); 
+                    els.dirAdvice.classList.replace('border-indigo-500', 'border-slate-300'); 
+                }
+            } else if (state.viewMode === 'TIME') {
+                let badTitle = []; let currentBranch = Math.floor((deg + 15) % 360 / 30);
+                Object.keys(state.toggles).filter(k=>state.toggles[k]).forEach(p => {
+                     const aff = state.calc.afflictions[p]; 
+                     const thName = (p==='year'?'ปี':p==='month'?'เดือน':p==='day'?'วัน':'ยาม');
+                     if(aff.clash === currentBranch) badTitle.push(`ทิศชง(${thName})`);
+                     
+                     let inSS = false; 
+                     if(aff.ssStart > aff.ssEnd) { 
+                         if(deg >= aff.ssStart || deg <= aff.ssEnd) inSS = true; 
+                     } else { 
+                         if(deg >= aff.ssStart && deg <= aff.ssEnd) inSS = true; 
+                     }
+                     if(inSS) badTitle.push(`ทิศอสูร(${thName})`);
+                });
+
+                if(badTitle.length > 0) { 
+                    title = "⚠️ " + badTitle.join(', '); remedy = "ห้ามเคาะ เจาะ ทุบ ตอก ซ่อมแซม ในทิศนี้เด็ดขาด!"; 
+                    els.dirAdvice.classList.replace('border-slate-300', 'border-red-500'); 
+                    els.dirAdvice.classList.replace('border-indigo-500', 'border-red-500'); 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-red-600'; hasBad = true; 
+                } else { 
+                    title = "ทิศปกติ (กาลเวลาจร)"; remedy = "ไม่มีดาวร้ายจรปะทะ สามารถใช้งานได้ปกติ"; 
+                    els.dirAdvice.classList.replace('border-red-500', 'border-slate-300'); 
+                    els.dirAdvice.classList.replace('border-indigo-500', 'border-slate-300'); 
+                    els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-slate-700'; 
+                }
+            }
+
+            if(title) { 
+                els.adviceTitle.innerText = title; 
+                els.adviceRemedy.innerText = remedy; 
+                els.dirAdvice.classList.remove('hidden'); 
+                setTimeout(() => { 
+                    els.dirAdvice.classList.remove('opacity-0', 'scale-95'); 
+                    els.dirAdvice.classList.add('opacity-100', 'scale-100'); 
+                }, 50); 
+            } else { 
+                els.dirAdvice.classList.add('opacity-0', 'scale-95'); 
+                setTimeout(() => els.dirAdvice.classList.add('hidden'), 300); 
+            }
+        }
+
+        let targetDegree = 0; let displayDegree = 0;
+        const norm360 = (d) => ((d % 360) + 360) % 360;
+        // ขยับมุมเข้าหาเป้าทางสั้นที่สุด (ข้าม 0°/360° ได้ไม่กระโดด)
+        function lerpAngle(start, end, amount) {
+            const diff = ((end - start + 540) % 360) - 180;
+            return norm360(start + diff * amount);
+        }
+        function screenAngle() {
+            if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+            return typeof window.orientation === 'number' ? window.orientation : 0;
+        }
+
+        // รับค่าเข็มทิศ:
+        // - iPhone: ใช้ webkitCompassHeading (อิงทิศเหนือ)
+        // - Android: ใช้ deviceorientationabsolute เท่านั้น อีเวนต์ deviceorientation ปกติให้ alpha แบบสัมพัทธ์ (ไม่อิงทิศเหนือ)
+        //   ถ้าเอามาปนกัน ค่าจะสลับไปมาและหน้าปัดกระโดด
+        let gotAbsoluteEvent = false; let lastHeadingAt = 0;
+        function handleOrientation(event) {
+            if (!state.isCompassActive) return;
+            let heading = null;
+            if (typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)) {
+                heading = event.webkitCompassHeading;
+            } else if (event.type === 'deviceorientationabsolute') {
+                gotAbsoluteEvent = true;
+                if (event.alpha !== null) heading = 360 - event.alpha;
+            } else if (event.absolute === true && !gotAbsoluteEvent && event.alpha !== null) {
+                heading = 360 - event.alpha; // เบราว์เซอร์ที่ส่ง absolute มากับ deviceorientation
+            }
+            if (heading === null || isNaN(heading)) return;
+            targetDegree = norm360(heading + screenAngle());
+            lastHeadingAt = Date.now();
+        }
+        
+        els.compassBtn.addEventListener('click', async () => {
+            if (!state.isCompassActive) {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try { 
+                        const permission = await DeviceOrientationEvent.requestPermission(); 
+                        if (permission === 'granted') { 
+                            window.addEventListener('deviceorientation', handleOrientation); 
+                            startCompass(); 
+                        } else { 
+                            showToast("ต้องอนุญาตให้เข้าถึงเข็มทิศก่อนครับ"); 
+                        } 
+                    } catch (e) { showToast("ไม่สามารถเปิดเข็มทิศได้: " + e.message); }
+                } else { 
+                    window.addEventListener('deviceorientationabsolute', handleOrientation); 
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    startCompass(); 
+                }
+            } else { stopCompass(); }
+        });
+
+        function startCompass() { 
+            state.isCompassActive = true; 
+            els.compassBtn.classList.replace('bg-indigo-600/95', 'bg-red-600/95'); 
+            els.compassBtn.innerHTML = '<svg class="w-full h-full animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>'; 
+            els.manualRotationControl.classList.add('hidden');
+            showToast("เริ่มจับเข็มทิศแล้ว");
+            const startedAt = Date.now();
+            setTimeout(() => {
+                if (state.isCompassActive && lastHeadingAt < startedAt) {
+                    showToast("เครื่องนี้ไม่ส่งค่าเข็มทิศที่อิงทิศเหนือ ใช้แถบเลื่อนแทน");
+                    stopCompass();
+                }
+            }, 3000);
+        }
+        
+        function stopCompass() { 
+            state.isCompassActive = false; 
+            window.removeEventListener('deviceorientation', handleOrientation); 
+            window.removeEventListener('deviceorientationabsolute', handleOrientation); 
+            els.compassBtn.classList.replace('bg-red-600/95', 'bg-indigo-600/95'); 
+            els.compassBtn.innerHTML = '<svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>'; 
+            els.manualRotationControl.classList.remove('hidden'); 
+            els.manualDegree.value = displayDegree; 
+        }
+        
+        els.manualDegree.addEventListener('input', (e) => { 
+            targetDegree = parseFloat(e.target.value); 
+            displayDegree = targetDegree; 
+            if(luopanMesh) luopanMesh.rotation.z = displayDegree * (Math.PI / 180); 
+            updateAdviceBox(displayDegree); 
+            state.currentDegree = displayDegree; 
+        });
+
+        const video = document.getElementById('videoBackground');
+        els.arBtn.addEventListener('click', async () => {
+            if (!isARTransparent) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); 
+                    video.srcObject = stream; video.style.display = 'block'; isARTransparent = true;
+                    els.arBtn.classList.replace('bg-slate-800/95', 'bg-emerald-600/95'); 
+                    els.arBtn.classList.replace('text-emerald-400', 'text-white'); 
+                    document.body.style.backgroundColor = 'transparent';
+                    showToast("เปิดโหมดซ้อนทับภาพ (AR) แล้ว");
+                    updateStatusBadge();
+                } catch(err) { showToast("ไม่สามารถเปิดกล้องได้: " + err.message); }
+            } else {
+                const stream = video.srcObject; 
+                if (stream) stream.getTracks().forEach(track => track.stop()); 
+                video.style.display = 'none'; isARTransparent = false;
+                els.arBtn.classList.replace('bg-emerald-600/95', 'bg-slate-800/95'); 
+                els.arBtn.classList.replace('text-white', 'text-emerald-400'); 
+                document.body.style.backgroundColor = '#020617';
+                updateStatusBadge();
+            }
+            draw2DTexture();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // ทิศชงกะพริบ: เปลี่ยนแค่ความโปร่งใสของชั้นไฮไลต์ ไม่ต้องวาด texture ใหม่
+            // (จานหลักวาดใหม่เฉพาะตอนข้อมูลเปลี่ยน ผ่าน draw2DTexture())
+            if (hasPulse) {
+                pulseMaterial.opacity = isARTransparent ? 0.4 : 0.3 + Math.sin(Date.now() / 150) * 0.25;
+            }
+            
+            if (luopanMesh && state.isCompassActive) { 
+                displayDegree = lerpAngle(displayDegree, targetDegree, 0.15); 
+                luopanMesh.rotation.z = displayDegree * (Math.PI / 180); 
+                if(Math.abs(state.currentDegree - displayDegree) > 0.5) { 
+                    updateAdviceBox(displayDegree); 
+                    state.currentDegree = displayDegree; 
+                } 
+            }
+            renderer.render(scene, camera);
+        }
+
+        calculateAll(); 
+        animate();
+    </script>
+</body>
+</html>
