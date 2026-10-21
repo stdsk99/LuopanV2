@@ -3,7 +3,7 @@
 
 // ---------- ข้อมูลแปลน (localStorage: luopan_plan) ----------
 const PLAN_KEY = 'luopan_plan';
-const newFloor = (name) => ({ name, img: null, aspect: 0.75, rect: null, front: 0, missing: [], rooms: {} });
+const newFloor = (name) => ({ name, img: null, aspect: 0.75, rect: null, poly: null, front: 0, missing: [], rooms: {} });
 let plan = null;
 try { plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); } catch (e) { plan = null; }
 if (!plan || !Array.isArray(plan.floors) || !plan.floors.length) plan = { floors: [newFloor('ชั้น 1')], cur: 0, mode: 'grid', layer: 'both' };
@@ -175,6 +175,7 @@ function defaultHint() {
     if (tool === 'corners') return setHint(tmpCorner ? 'แตะมุมทแยงอีกมุมของตัวบ้าน' : 'แตะมุมหนึ่งของตัวบ้าน แล้วแตะมุมทแยงตรงข้าม (ไม่นับที่จอดรถและบ้านข้าง ๆ)', 'info');
     if (tool === 'missing') return setHint('แตะช่องที่อยู่นอกตัวบ้านเพื่อทำเครื่องหมายมุมขาด แตะซ้ำเพื่อยกเลิก', 'info');
     if (tool === 'name') return setHint('แตะช่องในแปลน แล้วพิมพ์ชื่อห้องในรายการด้านขวา (เช่น ห้องนอนใหญ่ ห้องครัว ประตูหน้า)', 'info');
+    if (tool === 'poly') return setHint(!tmpPoly || tmpPoly.length < 3 ? 'แตะมุมของตัวบ้านไล่ไปรอบ ๆ ทีละจุด (บ้านรูปตัว L หรือมีส่วนยื่น)' : 'แตะมุมถัดไป หรือแตะจุดแรกเพื่อปิดรูป', 'info');
     if (!fl.img) return setHint('เลือกรูปแปลนบ้าน แล้วแตะมุมตัวบ้าน 2 มุม · ตอนนี้แสดงบนกระดาษเปล่าก่อน', 'info');
     if (!fl.rect) return setHint('กด "จิ้มมุมบ้าน" แล้วแตะมุมตัวบ้าน 2 มุมทแยงกัน', 'info');
     setHint('', 'info');
@@ -183,8 +184,13 @@ function defaultHint() {
 function setPressed(id, v) { document.querySelectorAll('#' + id + ' button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v)))); }
 function setTool(t) {
     tool = tool === t ? null : t; tmpCorner = null;
-    ['Corners', 'Missing', 'Name'].forEach(k => $('tool' + k).setAttribute('aria-pressed', String(tool === k.toLowerCase())));
-    defaultHint(); draw();
+    // ปิดเครื่องมือวาดรูปทรงขณะมีจุด ≥ 3 = ปิดรูปให้อัตโนมัติ
+    let closed = false;
+    if (tool !== 'poly' && tmpPoly && tmpPoly.length >= 3) { closePoly(); closed = true; } else if (tool !== 'poly') tmpPoly = null;
+    if (tool === 'poly' && !tmpPoly) tmpPoly = [];
+    ['Corners', 'Missing', 'Name', 'Poly'].forEach(k => $('tool' + k).setAttribute('aria-pressed', String(tool === k.toLowerCase())));
+    $('polyClear').hidden = !floor().poly;
+    defaultHint(); if (closed) autoMissing(); draw();
 }
 
 // ขนาด canvas ตามความกว้างกล่อง และสัดส่วนรูป
@@ -242,9 +248,21 @@ function draw() {
         ctx.restore();
     } else drawPie(R, fs);
 
-    // กรอบตัวบ้าน + จุดจับมุม
-    ctx.save(); ctx.setLineDash([9, 6]); ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3; ctx.strokeRect(R.x0, R.y0, R.w, R.h); ctx.restore();
-    if (fl.rect) {
+    // กรอบตัวบ้าน + จุดจับมุม (ถ้ามีรูปทรงหลายเหลี่ยม กรอบสี่เหลี่ยมเป็นเส้นจาง ๆ และจับได้ที่มุมรูปทรงแทน)
+    ctx.save(); ctx.setLineDash([9, 6]); ctx.strokeStyle = fl.poly ? 'rgba(202,138,4,0.45)' : '#ca8a04'; ctx.lineWidth = fl.poly ? 2 : 3; ctx.strokeRect(R.x0, R.y0, R.w, R.h); ctx.restore();
+    const drawPolyPath = (pts, close) => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x * cssW, y * cssH) : ctx.moveTo(x * cssW, y * cssH)); if (close) ctx.closePath(); };
+    if (fl.poly) {
+        drawPolyPath(fl.poly, true); ctx.lineWidth = 4; ctx.strokeStyle = '#ca8a04'; ctx.stroke();
+        fl.poly.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x * cssW, y * cssH, 9, 0, Math.PI * 2); ctx.fillStyle = '#ca8a04'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+        const [gx, gy] = polyCentroid(fl.poly);
+        ctx.save(); ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(gx * cssW - 10, gy * cssH); ctx.lineTo(gx * cssW + 10, gy * cssH); ctx.moveTo(gx * cssW, gy * cssH - 10); ctx.lineTo(gx * cssW, gy * cssH + 10); ctx.stroke();
+        ctx.beginPath(); ctx.arc(gx * cssW, gy * cssH, 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    }
+    if (tmpPoly && tmpPoly.length) {
+        drawPolyPath(tmpPoly, false); ctx.lineWidth = 3; ctx.strokeStyle = '#ca8a04'; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+        tmpPoly.forEach(([x, y], i) => { ctx.beginPath(); ctx.arc(x * cssW, y * cssH, i ? 7 : 11, 0, Math.PI * 2); ctx.fillStyle = i ? '#ca8a04' : '#16a34a'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(); });
+    }
+    if (fl.rect && !fl.poly) {
         // จุดจับ 4 มุม (วงกลม) และกลางขอบ 4 ด้าน (แท่ง) ลากได้ทุกจุด
         [[R.x0, R.y0], [R.x1, R.y0], [R.x0, R.y1], [R.x1, R.y1]].forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fillStyle = '#ca8a04'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke(); });
         const mx = (R.x0 + R.x1) / 2, my = (R.y0 + R.y1) / 2;
@@ -329,7 +347,9 @@ function starBox(st, cx, cy, fs) {
 // วงกลม 8 ทิศ: แบ่งตามองศาเข็มทิศจริงจากกลางกรอบบ้าน
 function drawPie(R, fs) {
     if (!calcNow.chart) return;
-    const cx = R.x0 + R.w / 2, cy = R.y0 + R.h / 2, front = floor().front, facing = house.facing;
+    // จุดศูนย์กลาง: centroid ของรูปทรงหลายเหลี่ยม (ถ้ามี) ไม่งั้นใช้กลางกรอบ
+    const pc = floor().poly ? polyCentroid(floor().poly) : null;
+    const cx = pc ? pc[0] * cssW : R.x0 + R.w / 2, cy = pc ? pc[1] * cssH : R.y0 + R.h / 2, front = floor().front, facing = house.facing;
     const screenAng = (deg) => (deg - facing + 90 * front) * Math.PI / 180; // องศาเข็มทิศ -> มุมบนจอ (ตามเข็มนาฬิกาจากด้านบน)
     const L = Math.hypot(R.w, R.h);
     ctx.save(); ctx.beginPath(); ctx.rect(R.x0, R.y0, R.w, R.h); ctx.clip();
@@ -413,8 +433,55 @@ function cellAt(nx, ny) {
     if (x < R.x0 || x > R.x1 || y < R.y0 || y > R.y1) return -1;
     return Math.min(2, Math.floor((y - R.y0) / (R.h / 3))) * 3 + Math.min(2, Math.floor((x - R.x0) / (R.w / 3)));
 }
+// ---------- รูปทรงบ้านหลายเหลี่ยม (บ้านรูปตัว L / มีส่วนยื่น) ----------
+// จุดศูนย์กลางถ่วงพื้นที่ (centroid) แบบเดียวกับ PlanCentroidForm ของ APK หล่อแก
+let tmpPoly = null;
+function polyBox(pl) { const xs = pl.map(p => p[0]), ys = pl.map(p => p[1]); return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) }; }
+function polyCentroid(pl) {
+    let A = 0, cx = 0, cy = 0;
+    for (let i = 0; i < pl.length; i++) {
+        const [x0, y0] = pl[i], [x1, y1] = pl[(i + 1) % pl.length];
+        const X0 = x0 * cssW, Y0 = y0 * cssH, X1 = x1 * cssW, Y1 = y1 * cssH, k = X0 * Y1 - X1 * Y0;
+        A += k; cx += (X0 + X1) * k; cy += (Y0 + Y1) * k;
+    }
+    if (Math.abs(A) < 1e-6) { const b = polyBox(pl); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
+    return [cx / (3 * A) / cssW, cy / (3 * A) / cssH];
+}
+function inPoly(x, y, pl) {
+    let c = false;
+    for (let i = 0, j = pl.length - 1; i < pl.length; j = i++) {
+        const [xi, yi] = pl[i], [xj, yj] = pl[j];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+}
+// ช่องที่รูปทรงบ้านครอบไม่ถึงครึ่ง = มุมขาด (ตั้งให้อัตโนมัติ แก้เองได้ด้วยปุ่มมุมขาด)
+function autoMissing() {
+    const fl = floor(); if (!fl.poly) return;
+    const b = fl.rect, miss = [];
+    for (let g = 0; g < 9; g++) {
+        if (g === 4) continue;
+        const c0 = b.x0 + (g % 3) * (b.x1 - b.x0) / 3, r0 = b.y0 + Math.floor(g / 3) * (b.y1 - b.y0) / 3;
+        let inside = 0; const N = 12;
+        for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (inPoly(c0 + (i + 0.5) / N * (b.x1 - b.x0) / 3, r0 + (j + 0.5) / N * (b.y1 - b.y0) / 3, fl.poly)) inside++;
+        if (inside / (N * N) < 0.5) miss.push(g);
+    }
+    fl.missing = miss;
+    setHint(miss.length ? `ทำเครื่องหมายมุมขาดให้อัตโนมัติ ${miss.length} ช่อง (รูปทรงครอบไม่ถึงครึ่งช่อง) แก้ได้ด้วยปุ่ม "มุมขาด"` : 'รูปทรงบ้านครอบทุกช่องเกินครึ่ง ไม่มีมุมขาด', 'info');
+}
+function closePoly() {
+    const fl = floor();
+    fl.poly = tmpPoly.slice(); tmpPoly = null; fl.rect = polyBox(fl.poly);
+    autoMissing(); planSave(); $('polyClear').hidden = false;
+}
 // จุดจับกรอบตัวบ้าน: มุมทั้ง 4 และขอบทั้ง 4 (นิ้วได้ระยะจับกว้างกว่าเมาส์)
 function grabAt(nx, ny, touch) {
+    const pl = floor().poly;
+    if (pl) { // รูปทรงหลายเหลี่ยม: จับได้เฉพาะมุมของรูปทรง
+        const rc = touch ? 28 : 14; let bi = -1, bd = rc;
+        pl.forEach(([x, y], i) => { const d = Math.hypot(nx * cssW - x * cssW, ny * cssH - y * cssH); if (d < bd) { bd = d; bi = i; } });
+        return bi >= 0 ? 'v' + bi : null;
+    }
     if (!floor().rect) return null;
     const R = rectPx(), x = nx * cssW, y = ny * cssH, rc = touch ? 30 : 16, re = touch ? 20 : 10;
     const corners = { nw: [R.x0, R.y0], ne: [R.x1, R.y0], sw: [R.x0, R.y1], se: [R.x1, R.y1] };
@@ -428,12 +495,12 @@ function grabAt(nx, ny, touch) {
     if (inY && Math.abs(x - R.x1) < re) return 'e';
     return null;
 }
-const GRAB_CURSOR = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+const GRAB_CURSOR = { v: 'move', nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
 let down = null;   // จุดที่แตะลง (ใช้แยก "แตะ" กับ "ลาก")
 let selCell = -1;  // ช่องที่เลือกอยู่ (ไฮไลต์บนแปลน ไม่เลื่อนหน้าจอเอง)
 cv.addEventListener('pointerdown', (e) => {
     const [nx, ny] = ptr(e), fl = floor(), touch = e.pointerType !== 'mouse';
-    if (tool !== 'corners') {
+    if (tool !== 'corners' && tool !== 'poly') {
         const gk = grabAt(nx, ny, touch);
         if (gk) { drag = gk; cv.setPointerCapture(e.pointerId); return; }
     }
@@ -441,16 +508,18 @@ cv.addEventListener('pointerdown', (e) => {
         if (!tmpCorner) { tmpCorner = [nx, ny]; defaultHint(); draw(); return; }
         if (Math.abs(nx - tmpCorner[0]) * cssW < 30 || Math.abs(ny - tmpCorner[1]) * cssH < 30) { setHint('กรอบเล็กเกินไป แตะมุมทแยงที่ห่างออกไป', 'warn'); return; }
         fl.rect = { x0: Math.min(tmpCorner[0], nx), y0: Math.min(tmpCorner[1], ny), x1: Math.max(tmpCorner[0], nx), y1: Math.max(tmpCorner[1], ny) };
+        fl.poly = null; $('polyClear').hidden = true;
         tmpCorner = null; planSave(); setTool('corners'); return;
     }
     down = { x: e.clientX, y: e.clientY, nx, ny };
 });
 cv.addEventListener('pointermove', (e) => {
     if (!drag) {
-        if (e.pointerType === 'mouse') { const [nx, ny] = ptr(e), gk = tool !== 'corners' && grabAt(nx, ny, false); cv.style.cursor = gk ? GRAB_CURSOR[gk] : 'crosshair'; }
+        if (e.pointerType === 'mouse') { const [nx, ny] = ptr(e), gk = tool !== 'corners' && tool !== 'poly' && grabAt(nx, ny, false); cv.style.cursor = gk ? GRAB_CURSOR[gk[0] === 'v' ? 'v' : gk] : 'crosshair'; }
         return;
     }
     const [nx, ny] = ptr(e).map(v => Math.min(1, Math.max(0, v))), r = floor().rect, m = 0.05;
+    if (drag[0] === 'v') { const fl = floor(); fl.poly[+drag.slice(1)] = [nx, ny]; fl.rect = polyBox(fl.poly); draw(); return; }
     if (drag.includes('n')) r.y0 = Math.min(ny, r.y1 - m);
     if (drag.includes('s')) r.y1 = Math.max(ny, r.y0 + m);
     if (drag.includes('w')) r.x0 = Math.min(nx, r.x1 - m);
@@ -458,12 +527,18 @@ cv.addEventListener('pointermove', (e) => {
     draw();
 });
 const endDrag = (e) => {
-    if (drag) { drag = null; planSave(); return; }
+    if (drag) { const wasV = drag[0] === 'v'; drag = null; if (wasV) autoMissing(); planSave(); draw(); return; }
     if (!down || e.type === 'pointercancel') { down = null; return; }
     // นับเป็น "แตะ" เมื่อนิ้วขยับไม่เกิน 10px เท่านั้น
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), d = down; down = null;
     if (moved > 10) return;
-    const fl = floor(), g = cellAt(d.nx, d.ny);
+    const fl = floor();
+    if (tool === 'poly') {
+        const f0 = tmpPoly[0];
+        if (f0 && tmpPoly.length >= 3 && Math.hypot((d.nx - f0[0]) * cssW, (d.ny - f0[1]) * cssH) < 24) { closePoly(); tool = null; setTool(null); autoMissing(); return; }
+        tmpPoly.push([d.nx, d.ny]); defaultHint(); draw(); return;
+    }
+    const g = cellAt(d.nx, d.ny);
     if (g < 0) { selCell = -1; showCellInfo(); draw(); return; }
     if (tool === 'missing') {
         if (g === 4) { setHint('กลางบ้านเป็นมุมขาดไม่ได้', 'warn'); return; }
@@ -498,6 +573,7 @@ function showCellInfo() {
 
 // ---------- รูปแปลน ----------
 function loadFloorImage() {
+    if ($('polyClear')) $('polyClear').hidden = !floor().poly;
     selCell = -1; if ($('cellInfo')) $('cellInfo').hidden = true;
     const fl = floor();
     if (!fl.img) { imgEl = null; draw(); return; }
@@ -514,7 +590,7 @@ $('planFile').addEventListener('change', (e) => {
             const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
             c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
             const fl = floor();
-            fl.img = c.toDataURL('image/jpeg', 0.8); fl.aspect = c.height / c.width; fl.rect = null; fl.missing = [];
+            fl.img = c.toDataURL('image/jpeg', 0.8); fl.aspect = c.height / c.width; fl.rect = null; fl.poly = null; fl.missing = [];
             planSave(); loadFloorImage(); tool = null; setTool('corners');
         };
         im.onerror = () => setHint('เปิดรูปนี้ไม่ได้ ลองไฟล์ JPG หรือ PNG', 'warn');
@@ -582,6 +658,8 @@ function refresh() { computeAll(); renderChips(); defaultHint(); draw(); }
 $('toolCorners').addEventListener('click', () => setTool('corners'));
 $('toolMissing').addEventListener('click', () => setTool('missing'));
 $('toolName').addEventListener('click', () => setTool('name'));
+$('toolPoly').addEventListener('click', () => setTool('poly'));
+$('polyClear').addEventListener('click', () => { const fl = floor(); fl.poly = null; tmpPoly = null; planSave(); $('polyClear').hidden = true; defaultHint(); draw(); });
 $('frontSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; floor().front = +b.dataset.v; planSave(); setPressed('frontSeg', floor().front); draw(); });
 $('modeSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; plan.mode = b.dataset.v; planSave(); setPressed('modeSeg', plan.mode); draw(); });
 $('layerSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; plan.layer = b.dataset.v; planSave(); setPressed('layerSeg', plan.layer); draw(); });
@@ -593,9 +671,52 @@ window.addEventListener('storage', (e) => {
 let resizeTimer = null;
 window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(draw, 120); });
 
+
+// ---------- คำนวณปรับระยะประตู (ตาม DoorForm ของ APK ดาวเหิน F04) ----------
+// หมุนบานประตูไป θ: ขอบด้านหนึ่งยื่นออก W·sinθ (หมุนรอบอีกขอบ) · หรือยืดขอบออก W·tanθ ให้ช่องประตูใหม่กว้าง W/cosθ
+function initDoor() {
+    const f = $('dFrom'), t = $('dTo'), w = $('dW');
+    const setDefault = () => { if (house && !f.value) f.value = house.facing; };
+    function suggest() {
+        const from = parseFloat(f.value); const box = $('dSuggest');
+        if (isNaN(from)) { box.innerHTML = ''; return; }
+        // กลางภูเขาเดิมและภูเขาข้างเคียง ที่ไม่ตกเส้นอันตราย
+        const m = houseMountainOf(from).m, opts = [];
+        [0, -1, 1].forEach(k => {
+            const mm = (m + k + 24) % 24, c0 = houseNorm360(mm * 15 - 15); // กลางภูเขา (壬 = 345°)
+            // กลางภูเขาบางลูกตรงกับรอยต่อวงฟ้า: เลื่อนไป 1° ภายในภูเขาเดียวกัน
+            const c = [c0, c0 + 1, c0 - 1].map(houseNorm360).find(x => !houseDownLine(x));
+            if (c !== undefined) opts.push({ c, mm, k });
+        });
+        box.innerHTML = '<span class="text-slate-400 self-center">แนะนำ:</span>' + opts.map(o => `<button type="button" class="tool dsug" data-v="${o.c}">${o.k === 0 ? 'กลางภูเขาเดิม' : 'กลาง'} <span class="cn-char">${HOUSE_M24[o.mm]}</span> ${o.c.toFixed(1)}°</button>`).join('');
+        box.querySelectorAll('.dsug').forEach(b => b.addEventListener('click', () => { t.value = b.dataset.v; calc(); }));
+    }
+    function calc() {
+        const from = parseFloat(f.value), to = parseFloat(t.value), W = parseFloat(w.value), out = $('dOut');
+        if (isNaN(from) || isNaN(to) || !(W > 0)) { out.innerHTML = '<span class="text-slate-400">ใส่องศาประตูเดิม องศาที่ต้องการ และความกว้างประตู</span>'; return; }
+        const diff = ((to - from + 540) % 360) - 180, th = Math.abs(diff) * Math.PI / 180;
+        if (Math.abs(diff) < 0.05) { out.innerHTML = '<span class="text-slate-400">องศาเท่าเดิม ไม่ต้องปรับ</span>'; return; }
+        if (Math.abs(diff) >= 45) { out.innerHTML = '<span class="text-red-300">ต่างกันเกิน 45° ปรับด้วยการหมุนบานไม่ได้ ควรย้ายตำแหน่งประตู</span>'; return; }
+        // มองจากในบ้านออกไป: หมุนตามเข็มนาฬิกา (องศาเพิ่ม) = ดันขอบซ้ายออก · ทวนเข็ม = ดันขอบขวาออก
+        const side = diff > 0 ? 'ซ้าย' : 'ขวา', other = diff > 0 ? 'ขวา' : 'ซ้าย';
+        const rot = W * Math.sin(th), ext = W * Math.tan(th), neww = W / Math.cos(th);
+        const ln = houseDownLine(to), mt = houseMountainOf(to);
+        out.innerHTML = `<div>ปรับ <b class="text-yellow-300">${Math.abs(diff).toFixed(1)}°</b> ${diff > 0 ? 'ตามเข็มนาฬิกา' : 'ทวนเข็มนาฬิกา'} → หัน <b class="cn-char text-yellow-300">${HOUSE_M24[mt.m]}</b> ${houseNorm360(to).toFixed(1)}°</div>
+            ${ln ? `<div class="text-amber-300">⚠️ องศาใหม่ตก${ln.th} (${ln.cn}) ควรเลือกองศาอื่น</div>` : ''}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <div class="rounded-lg border border-slate-700 bg-slate-950/60 p-2"><b class="text-sky-300">แบบหมุน</b><br>ยึดขอบ${other}ไว้ ดันขอบ${side}ออกไปข้างหน้า <b class="text-yellow-300">${rot.toFixed(1)} ซม.</b><br><span class="text-slate-400">ความกว้างประตูเท่าเดิม</span></div>
+                <div class="rounded-lg border border-slate-700 bg-slate-950/60 p-2"><b class="text-sky-300">แบบยืด</b><br>ยึดขอบ${other}ไว้ ยืดวงกบด้าน${side}ออกไป <b class="text-yellow-300">${ext.toFixed(1)} ซม.</b><br><span class="text-slate-400">ช่องประตูใหม่กว้าง ${neww.toFixed(1)} ซม.</span></div>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-1">ซ้าย/ขวา = ยืนในบ้านหันหน้าออกประตู · ${Math.abs(diff) > 15 ? 'ปรับเกิน 15° ควรปรึกษาช่าง/ผู้รู้ก่อน' : 'วัดองศาซ้ำหลังปรับเสมอ'}</div>`;
+    }
+    [f, t, w].forEach(el => el.addEventListener('input', () => { if (el === f) suggest(); calc(); }));
+    $('doorBox').addEventListener('toggle', () => { setDefault(); suggest(); calc(); });
+    setDefault(); suggest(); calc();
+}
 // ---------- เริ่มทำงาน ----------
 initSetup();
 computeAll();
 renderChips();
 syncControls();
 loadFloorImage();
+initDoor();
