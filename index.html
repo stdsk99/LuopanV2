@@ -112,7 +112,7 @@
 
     <div id="uiLayer" class="flex flex-col h-full w-full">
         <div id="toastNotification" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 bg-slate-800/95 text-white px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md font-semibold text-[clamp(12px,3vmin,16px)] transition-all duration-300 opacity-0 pointer-events-none scale-90 flex items-center gap-2 border border-slate-600/50">
-            <span id="toastMessage" class="whitespace-nowrap">แจ้งเตือน</span>
+            <span id="toastMessage" class="text-center" style="max-width: calc(100vw - 72px); white-space: pre-line;">แจ้งเตือน</span>
         </div>
 
         <!-- Floating Buttons (Left): ปรับขนาดปุ่มให้รองรับ Tablet -->
@@ -1309,7 +1309,10 @@
         // - iPhone: ใช้ webkitCompassHeading (อิงทิศเหนือ)
         // - Android: ใช้ deviceorientationabsolute เท่านั้น อีเวนต์ deviceorientation ปกติให้ alpha แบบสัมพัทธ์ (ไม่อิงทิศเหนือ)
         //   ถ้าเอามาปนกัน ค่าจะสลับไปมาและหน้าปัดกระโดด
+        // ถ้าเครื่องส่งมาแค่ค่าแบบสัมพัทธ์ (ไม่มีเซนเซอร์แม่เหล็ก หรือเบราว์เซอร์ไม่รองรับ)
+        // จะเข้า "โหมดหมุนตามเครื่อง": เริ่มจากองศาที่ตั้งไว้ด้วยแถบเลื่อน แล้วหมุนตามการหมุนของเครื่อง
         let gotAbsoluteEvent = false; let lastHeadingAt = 0;
+        let lastRelativeAlpha = null; let relativeMode = false; let relativeOffset = 0;
         function handleOrientation(event) {
             if (!state.isCompassActive) return;
             let heading = null;
@@ -1320,14 +1323,29 @@
                 if (event.alpha !== null) heading = 360 - event.alpha;
             } else if (event.absolute === true && !gotAbsoluteEvent && event.alpha !== null) {
                 heading = 360 - event.alpha; // เบราว์เซอร์ที่ส่ง absolute มากับ deviceorientation
+            } else if (event.alpha !== null && event.alpha !== undefined) {
+                lastRelativeAlpha = event.alpha;
+                if (relativeMode && !gotAbsoluteEvent) targetDegree = norm360(360 - event.alpha + relativeOffset);
+                return;
             }
             if (heading === null || isNaN(heading)) return;
+            relativeMode = false;
             targetDegree = norm360(heading + screenAngle());
             lastHeadingAt = Date.now();
         }
         
         els.compassBtn.addEventListener('click', async () => {
             if (!state.isCompassActive) {
+                // เซนเซอร์ใช้ได้เฉพาะหน้าเว็บที่ปลอดภัย (https://) ไฟล์ที่เปิดจากแอปจัดการไฟล์บนมือถือจะไม่ได้รับค่า
+                if (window.isSecureContext === false) {
+                    showToast("เข็มทิศใช้ได้เฉพาะเว็บที่เปิดผ่าน https://\nไฟล์ที่เปิดจากในเครื่องใช้เซนเซอร์ไม่ได้");
+                    return;
+                }
+                if (typeof DeviceOrientationEvent === 'undefined') {
+                    showToast("เบราว์เซอร์นี้ไม่รองรับเข็มทิศ ใช้แถบเลื่อนแทน");
+                    return;
+                }
+                gotAbsoluteEvent = false; lastRelativeAlpha = null; relativeMode = false;
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     try { 
                         const permission = await DeviceOrientationEvent.requestPermission(); 
@@ -1354,8 +1372,17 @@
             showToast("เริ่มจับเข็มทิศแล้ว");
             const startedAt = Date.now();
             setTimeout(() => {
-                if (state.isCompassActive && lastHeadingAt < startedAt) {
-                    showToast("เครื่องนี้ไม่ส่งค่าเข็มทิศที่อิงทิศเหนือ ใช้แถบเลื่อนแทน");
+                if (!state.isCompassActive || lastHeadingAt >= startedAt) return; // ได้ค่าทิศเหนือแล้ว ปกติ
+                if (lastRelativeAlpha !== null) {
+                    // ได้ค่าแต่ไม่อิงทิศเหนือ: หมุนตามเครื่องโดยเริ่มจากองศาเดิม
+                    relativeMode = true;
+                    relativeOffset = norm360(displayDegree - (360 - lastRelativeAlpha));
+                    showToast("เครื่องนี้ไม่ส่งค่าทิศเหนือ\nจานจะหมุนตามเครื่อง โดยเริ่มจาก " + displayDegree.toFixed(1) + "°\n(ตั้งองศาด้วยแถบเลื่อนก่อนเปิดเข็มทิศ)");
+                } else {
+                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    showToast(isMobile
+                        ? "ไม่ได้รับค่าจากเซนเซอร์\nเปิดสิทธิ์ 'เซ็นเซอร์ตรวจจับการเคลื่อนไหว' ในการตั้งค่าเว็บไซต์ของ Chrome"
+                        : "คอมพิวเตอร์ไม่มีเซนเซอร์เข็มทิศ ใช้แถบเลื่อนแทน");
                     stopCompass();
                 }
             }, 3000);
