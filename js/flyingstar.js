@@ -259,6 +259,7 @@ function houseSaveFacing(deg) {
 function houseRefresh() {
     houseUpdateInfo();
     renderHousePanel();
+    if (typeof renderPersonDetail === 'function') renderPersonDetail();
     if (state.viewMode === 'HOUSE') { updateStatusBadge(); draw2DTexture(); updateAdviceBox(state.currentDegree); }
 }
 // หมุนจานไปที่ทิศหน้าบ้านและหยุดไว้ (ให้แปลนกับจานตรงกัน)
