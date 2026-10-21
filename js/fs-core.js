@@ -53,6 +53,10 @@ function houseTimeliness(n, P) {
 // ยุคปัจจุบันตามวันที่ (ปีฮวงจุ้ยเปลี่ยนที่ 立春) ใช้ตัดสินดาวรุ่ง/ถอย และดาวถูกล็อค (เหมือน APK F04)
 function houseCurrentPeriod(solarYear) { return housePeriodOf(solarYear); }
 
+// ดาวจรเดือน (ดาวกลาง) จากกิ่งปีและกิ่งเดือน (0 = 子) ตารางเดียวกับ CalDateStar ของ APK
+const HOUSE_MONTH_STAR = [[7, 6, 8, 7, 6, 5, 4, 3, 2, 1, 9, 8], [4, 3, 5, 4, 3, 2, 1, 9, 8, 7, 6, 5], [1, 9, 2, 1, 9, 8, 7, 6, 5, 4, 3, 2]];
+function houseMonthStar(yearZhi, monthZhi) { return HOUSE_MONTH_STAR[yearZhi % 3][monthZhi]; }
+
 // สภาพของทิศบ้าน: ลำดับตรวจและชื่อตาม ChkCond / TxtStarsCond ของ APK (บารมี = ดาวภูเขา, ลาภ = ดาวน้ำ)
 const HOUSE_COND = [
     null,
