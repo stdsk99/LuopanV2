@@ -94,6 +94,9 @@ function houseAdvice(deg) {
     const m = ch.mt.g[p], f = ch.ft.g[p], b = ch.base.g[p], a = ch.an.g[p], P = ch.C;
     const notes = []; let level = 'normal';
     const good = (n) => ['wang', 'sheng'].includes(houseTimeliness(n, P).k);
+    // องศาที่ชี้อยู่ตกเส้นอันตรายหรือไม่ (ใช้ตอนวัดประตู/หน้าบ้าน)
+    const ln = houseDownLine(deg);
+    if (ln) notes.push(`⚠ องศานี้ตก${ln.th} (${ln.cn})`);
     // ข้อความสั้น กระชับ ให้พอดีกล่องเหนือกล่ององศาบนมือถือ
     if (m === P && f === P) { notes.push('ดาวรุ่งคู่ ดีมาก'); level = 'good'; }
     else if (f === P) { notes.push('ดาวน้ำรุ่ง เหมาะประตู/ทางเดิน'); level = 'good'; }
