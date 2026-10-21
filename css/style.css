@@ -1,0 +1,94 @@
+html, body { height: 100%; }
+body { font-family: 'Prompt', sans-serif; background-color: #020617; color: white; overflow: hidden; touch-action: none; margin: 0; padding: 0; }
+/* ใช้ 100dvh เพื่อไม่ให้แถบที่อยู่ของเบราว์เซอร์มือถือบังจอ (เบราว์เซอร์เก่าใช้ 100vh) */
+#canvas3dContainer { width: 100%; height: 100vh; height: 100dvh; position: absolute; top: 0; left: 0; z-index: 1; }
+#uiLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh; z-index: 10; pointer-events: none; }
+.pointer-events-auto { pointer-events: auto; }
+.glass-panel { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+.layer-btn.active { background: rgba(30, 41, 59, 0.9); border-color: #d4af37; color: #fde047; box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
+input[type="range"] { accent-color: #d4af37; }
+
+#sidebar {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-100%);
+    opacity: 0;
+    box-shadow: none;
+}
+#sidebar.open {
+    transform: translateX(0);
+    opacity: 1;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+}
+
+#videoBackground {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh;
+    object-fit: cover; z-index: 0; display: none;
+}
+
+/* ===== Responsive layout =====
+   JS (layoutUI) คำนวณขนาดจานให้พอดีจอ แล้วส่งค่ามาเป็นตัวแปร CSS:
+   --deg-bottom : ระยะจากขอบล่างถึงขอบบนของจาน (กล่ององศาวางชิดเหนือจาน)
+   --side-w     : ความกว้างช่องว่างข้างจาน (ใช้ในจอแนวนอน)
+   --side-top   : ตำแหน่งใต้ปุ่มลอย (ใช้ในจอแนวนอน) */
+#fabLeft, #fabRight { top: calc(clamp(60px, 8vh, 100px) + env(safe-area-inset-top, 0px)); }
+#fabLeft { left: max(clamp(16px, 4vw, 32px), env(safe-area-inset-left, 0px)); }
+#fabRight { right: max(clamp(16px, 4vw, 32px), env(safe-area-inset-right, 0px)); }
+#toastNotification { top: calc(20px + env(safe-area-inset-top, 0px)); }
+
+/* จอแนวตั้ง: กล่ององศาอยู่เหนือจาน กล่องสถานะอยู่ใต้จาน */
+#degreeDisplay {
+    top: auto;
+    bottom: var(--deg-bottom, calc(100% - clamp(75px, 11vh, 120px) - 80px));
+    left: 50%;
+    transform: translateX(-50%);
+    /* แคบพอไม่ให้ไปทับปุ่มลอยซ้าย-ขวา */
+    width: calc(100% - 2 * (clamp(16px, 4vw, 32px) + clamp(48px, 12vmin, 64px) + 10px));
+    max-width: 500px;
+}
+#degreeDisplay #dirAdvice { max-width: 100%; }
+#statusBadgeWrapper {
+    bottom: calc(clamp(95px, 14vh, 150px) + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+    max-width: 550px;
+}
+#manualRotationControl { bottom: calc(clamp(16px, 3vh, 32px) + env(safe-area-inset-bottom, 0px)); }
+
+/* จอแนวนอน (มือถือแนวนอน แท็บเล็ตแนวนอน เดสก์ท็อป): ย้ายกล่องไปไว้ข้างจาน */
+body.side-layout #degreeDisplay {
+    top: var(--side-top, 180px); bottom: auto;
+    left: calc(var(--side-w, 260px) / 2 + env(safe-area-inset-left, 0px) / 2);
+    width: calc(var(--side-w, 260px) - 32px); max-width: 440px;
+}
+body.side-layout #degreeDisplay .deg-arrow { display: none; }
+body.side-layout #dirAdvice { order: 2; margin: 12px 0 0; width: 100%; max-width: 100%; }
+body.side-layout #degreeBox { width: 100%; }
+body.side-layout #statusBadgeWrapper {
+    top: var(--side-top, 180px); bottom: auto;
+    left: calc(100% - var(--side-w, 260px) / 2 - env(safe-area-inset-right, 0px) / 2);
+    width: calc(var(--side-w, 260px) - 32px); max-width: 440px;
+}
+body.side-layout #manualRotationControl {
+    left: auto; right: env(safe-area-inset-right, 0px);
+    width: var(--side-w, 260px); padding-left: 16px; padding-right: 16px;
+}
+body.side-layout #manualRotationControl input { max-width: 100%; }
+/* จอเตี้ยมาก (มือถือแนวนอน): ลดขนาดตัวอักษรในกล่องสถานะ */
+@media (max-height: 480px) {
+    body.side-layout #statusBadge { padding: 8px 12px; }
+    body.side-layout #statusBadge span, body.side-layout #statusBadge div { font-size: 12px !important; }
+    body.side-layout #manualRotationControl label { display: none; }
+}
+/* iPhone จะซูมหน้าจอเองถ้าช่องกรอกตัวอักษรเล็กกว่า 16px */
+@media (max-width: 767px) {
+    #sidebar input[type="datetime-local"], #sidebar select { font-size: 16px; }
+}
+#sidebar { padding-left: env(safe-area-inset-left, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+.cn-char { font-family: 'STKaiti', 'KaiTi', 'SimKai', serif; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
