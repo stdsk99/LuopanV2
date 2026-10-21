@@ -385,15 +385,28 @@ function zeroBox() {
         <div class="mt-1.5 space-y-1">${zs.map(z => `<div><b class="${z.k.includes('ling') ? 'text-sky-300' : 'text-amber-300'}">${PS[z.pal]} ${DIR_SHORT[PS[z.pal]]}</b> · <span class="cn-char">${z.cn}</span> ${z.th} <span class="text-slate-400">(${z.when})</span><br><span class="text-slate-300">นอกบ้าน: ${z.out} · ในบ้าน: ${z.ins}</span></div>`).join('')}
         <div class="text-[10px] text-slate-500">ถ้าทิศของยุคนี้กับยุคหน้าขัดกัน ให้ยึดยุคปัจจุบันก่อน</div></div></details>`;
 }
+// 7 ดาวขโมยโชค แบบ 64 ข่วย (สูตรตามแอป F07): ทิศน้ำ = ข่วยกลับหัวของข่วยประตู, ทิศมังกร = ตรงข้าม
+function robberyBox() {
+    const rb = houseRobbery64(house.facing);
+    const PS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const dir = (x) => { const mo = houseMountainOf(x.mid); return `<b>${PS[mo.palace]} ${DIR_SHORT[PS[mo.palace]]}</b> ${x.a.toFixed(2)}°–${x.b.toFixed(2)}° ภูเขา <span class="cn-char">${HOUSE_M24[mo.m]}</span> <span class="text-slate-400">${houseGuaName(x.kw)}</span>`; };
+    const body = rb.none ? '<div class="text-slate-300">บ้านทิศทางนี้ไม่มีผัง 7 ดาวขโมยโชค (ข่วยประตูกลับหัวแล้วเป็นข่วยเดิม)</div>'
+        : `<div><span class="text-cyan-300">ทิศน้ำ</span> ${dir(rb.water)}<br><span class="text-slate-300">ควรมีน้ำ ทางน้ำ ถนน หรือที่โล่งต่ำ ในบ้านเหมาะกับประตู หน้าต่าง หรือตู้ปลา</span></div>
+           <div><span class="text-green-400">ทิศมังกร</span> ${dir(rb.dragon)}<br><span class="text-slate-300">ควรมีที่สูง ตึก หรือแนวพิงที่มั่นคง</span></div>`;
+    return `<details class="text-[12px] rounded-lg px-3 py-2 border border-cyan-800/70 bg-cyan-950/20"><summary class="cursor-pointer text-cyan-200"><b>7 ดาวขโมยโชค</b> <b class="cn-char">七星打劫</b> (สาย 64 ข่วย)</summary>
+        <div class="mt-1.5 space-y-1"><div class="text-slate-400">ข่วยประตูหน้าบ้าน ${houseGuaName(rb.door.kw)}</div>${body}
+        <div class="text-[10px] text-slate-500">ดึงพลังจากทิศดังกล่าวเข้าบ้านล่วงหน้า · สูตรตามแอป ฮวงจุ้ย 64 ข่วย (F07) เป็นคนละแบบกับ 七星打劫 ของดาวเหิน</div></div></details>`;
+}
 function renderRooms(cells) {
     $('floorLabel').textContent = '· ' + floor().name;
     const pt = $('patterns');
     if (!calcNow.chart) { pt.innerHTML = ''; }
     else {
-        const ch = calcNow.chart, warn = houseWarning(house.facing);
+        const ch = calcNow.chart, warn = houseWarning(house.facing), tiNote = houseTiNote(ch);
         pt.innerHTML = ch.pat.map(x => `<div class="text-[12px] rounded-lg px-3 py-2 border ${x.k === 'good' ? 'border-emerald-600 text-emerald-200' : x.k === 'bad' ? 'border-red-600 text-red-200' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> <b>${x.th}</b> · ${x.t}</div>`).join('')
+            + (tiNote ? `<div class="text-[11px] text-yellow-200">🔁 ${tiNote}</div>` : '')
             + (warn ? `<div class="text-[11px] text-amber-300">${warn}</div>` : '')
-            + zeroBox();
+            + zeroBox() + robberyBox();
     }
     const sorted = cells.slice().sort((a, b) => (VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict]) || (b.score - a.score));
     const box = $('rooms');
@@ -645,6 +658,8 @@ function initSetup() {
         houseSave(); refresh();
     };
     ['inFacing', 'inYear', 'inPeriod'].forEach(id => $(id).addEventListener('change', saveHouse));
+    $('inTigua').checked = HOUSE_TI;
+    $('inTigua').addEventListener('change', () => { houseTiSet($('inTigua').checked); refresh(); });
     $('inBirth').addEventListener('change', () => { owner.birth = $('inBirth').value; try { localStorage.setItem('luopan_birthDate', owner.birth); } catch (e) {} refresh(); });
     $('inGender').addEventListener('change', () => { owner.gender = $('inGender').value; try { localStorage.setItem('luopan_gender', owner.gender); } catch (e) {} refresh(); });
     if (!house) $('setup').open = true;

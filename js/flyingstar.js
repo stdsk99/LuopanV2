@@ -30,6 +30,12 @@ function drawHouseDial(g) {
         const fd = ch.f.m * 15 - 15, sd = ch.s.m * 15 - 15;
         drawSeg(rBrn, rTicks, fd - 7.5, fd + 7.5, 'rgba(239,68,68,0.25)', '#ef4444', 6);
         drawSeg(rBrn, rTicks, sd - 7.5, sd + 7.5, 'rgba(59,130,246,0.25)', '#3b82f6', 6);
+        // 7 ดาวขโมยโชค (64 ข่วย): แถบบางที่ขอบนอก ฟ้า = ทิศน้ำ เขียว = ทิศมังกร
+        const rb = houseRobbery64(house.facing);
+        if (!rb.none) {
+            drawSeg(rTicks * 0.93, rTicks, rb.water.a, rb.water.b, 'rgba(34,211,238,0.85)', 'transparent');
+            drawSeg(rTicks * 0.93, rTicks, rb.dragon.a, rb.dragon.b, 'rgba(74,222,128,0.85)', 'transparent');
+        }
     }
 
     // 8 วัง
@@ -153,19 +159,36 @@ function renderHousePanel() {
     const r = housePeriodRange(ch.P);
     const pats = ch.pat.length ? ch.pat.map(x => `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border ${x.k === 'good' ? 'border-emerald-600 text-emerald-300' : x.k === 'bad' ? 'border-red-600 text-red-300' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> <b>${x.th}</b> · ${x.t}</div>`).join('')
         : '<div class="mt-2 text-[10px] text-slate-400">ทิศปกติ ไม่เข้าเกณฑ์ผังพิเศษ</div>';
-    const warn = houseWarning(house.facing);
+    const warn = houseWarning(house.facing), tiNote = houseTiNote(ch);
     el.innerHTML = `
         <div class="text-[10px] md:text-[11px] text-slate-300 mb-2">นั่ง <b class="cn-char">${HOUSE_M24[ch.s.m]}</b> ${norm360(house.facing + 180).toFixed(1)}° · หัน <b class="cn-char">${HOUSE_M24[ch.f.m]}</b> ${house.facing.toFixed(1)}° · ผังยุค ${ch.P} (${r[0]}–${r[1]})${ch.C !== ch.P ? ` · ตอนนี้ยุค ${ch.C}` : ''}</div>
         <div class="grid grid-cols-3 gap-[3px] bg-slate-600 p-[3px] rounded-lg">${cells.map(box).join('')}</div>
         <div class="flex flex-wrap justify-center gap-x-3 mt-1.5 text-[9px]"><span class="text-amber-400">■ ดาวภูเขา</span><span class="text-blue-400">■ ดาวน้ำ</span><span class="text-slate-400">■ ดาวยุค</span><span class="text-amber-400">▣ ดาวจรปี ${state.calc.timeBazi.solarYear}</span><span class="text-green-400">□ ดาวรุ่งยุค ${ch.C}</span></div>
         ${pats}
-        ${warn ? `<div class="mt-2 text-[10px] text-amber-300">${warn}</div>` : ''}`;
+        ${tiNote ? `<div class="mt-2 text-[10px] text-yellow-200">🔁 ${tiNote}</div>` : ''}
+        ${warn ? `<div class="mt-2 text-[10px] text-amber-300">${warn}</div>` : ''}
+        ${houseRobberyHtml(house.facing)}`;
+}
+// 7 ดาวขโมยโชค แบบ 64 ข่วย (สูตรตามแอป F07)
+function houseRobberyDir(x) {
+    const mo = houseMountainOf(x.mid);
+    return `<b>${x.a.toFixed(2)}°–${x.b.toFixed(2)}°</b> ภูเขา <span class="cn-char">${HOUSE_M24[mo.m]}</span> วัง${HOUSE_PALACE_SHORT[mo.palace]} <span class="text-slate-400">${houseGuaName(x.kw)}</span>`;
+}
+function houseRobberyHtml(facing) {
+    const rb = houseRobbery64(facing);
+    const head = `<b>7 ดาวขโมยโชค</b> <span class="cn-char">七星打劫</span> <span class="text-slate-400">(สาย 64 ข่วย · ประตู ${houseGuaName(rb.door.kw)})</span>`;
+    if (rb.none) return `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border border-slate-600 text-slate-300">${head}<br>บ้านทิศทางนี้ไม่มีผัง 7 ดาวขโมยโชค (ข่วยประตูกลับหัวแล้วเป็นข่วยเดิม)</div>`;
+    return `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border border-cyan-700 text-slate-200 leading-relaxed">${head}
+        <div><span class="text-cyan-300">■ ทิศน้ำ</span> ${houseRobberyDir(rb.water)} · ควรมีน้ำ ทางน้ำ หรือที่โล่งต่ำ</div>
+        <div><span class="text-green-400">■ ทิศมังกร</span> ${houseRobberyDir(rb.dragon)} · ควรมีที่สูง ตึก หรือแนวพิง</div>
+        <div class="text-slate-500">ดึงพลังจากทิศดังกล่าวเข้าบ้านล่วงหน้า (แถบสีที่ขอบจาน) · เป็นวิชา 64 ข่วย คนละแบบกับ 七星打劫 ของดาวเหิน</div></div>`;
 }
 
 // ---------- ตั้งค่าบ้าน (แท็บตั้งค่า) ----------
 const houseEls = {
     info: document.getElementById('houseInfo'), saveBtn: document.getElementById('houseSaveBtn'),
-    facing: document.getElementById('houseFacing'), year: document.getElementById('houseYear'), period: document.getElementById('housePeriod')
+    facing: document.getElementById('houseFacing'), year: document.getElementById('houseYear'), period: document.getElementById('housePeriod'),
+    tigua: document.getElementById('houseTigua')
 };
 (function initHouseForm() {
     if (!houseEls.period) return;
@@ -178,6 +201,10 @@ const houseEls = {
     houseEls.facing.addEventListener('change', () => { const v = parseFloat(houseEls.facing.value); if (!isNaN(v)) houseSaveFacing(v); });
     houseEls.year.addEventListener('change', () => { const v = parseInt(houseEls.year.value, 10); if (house && v >= 1864 && v <= 2163) { house.year = v; houseSave(); houseRefresh(); } });
     houseEls.period.addEventListener('change', () => { if (house) { house.period = houseEls.period.value; houseSave(); houseRefresh(); } });
+    if (houseEls.tigua) {
+        houseEls.tigua.checked = HOUSE_TI;
+        houseEls.tigua.addEventListener('change', () => { houseTiSet(houseEls.tigua.checked); houseRefresh(); });
+    }
     houseUpdateInfo();
 })();
 function houseUpdateInfo() {
