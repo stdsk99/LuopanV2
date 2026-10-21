@@ -45,7 +45,16 @@ input[type="range"] { accent-color: #d4af37; }
     width: calc(100% - 2 * (clamp(16px, 4vw, 32px) + clamp(48px, 12vmin, 64px) + 10px));
     max-width: 500px;
 }
-#degreeDisplay #dirAdvice { max-width: 100%; }
+/* กล่องคำแนะนำเหนือกล่ององศา: สูงไม่เกินพื้นที่ว่างถึงขอบบนจอ ถ้ายาวกว่านั้นให้เลื่อนอ่านในกล่อง (ตัวหนังสือไม่ขาด) */
+#degreeDisplay #dirAdvice {
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+    max-height: calc(100vh - var(--deg-bottom, 50vh) - clamp(70px, 14vmin, 110px) - env(safe-area-inset-top, 0px) - 8px);
+    max-height: calc(100dvh - var(--deg-bottom, 50dvh) - clamp(70px, 14vmin, 110px) - env(safe-area-inset-top, 0px) - 8px);
+}
+#degreeDisplay #dirAdvice { padding-left: clamp(10px, 3vmin, 32px); padding-right: clamp(10px, 3vmin, 32px); }
+#statusBadge { padding-top: clamp(8px, 1.8vmin, 16px); padding-bottom: clamp(8px, 1.8vmin, 16px); }
 #statusBadgeWrapper {
     bottom: calc(clamp(95px, 14vh, 150px) + env(safe-area-inset-bottom, 0px));
     left: 50%;
@@ -62,7 +71,7 @@ body.side-layout #degreeDisplay {
     width: calc(var(--side-w, 260px) - 32px); max-width: 440px;
 }
 body.side-layout #degreeDisplay .deg-arrow { display: none; }
-body.side-layout #dirAdvice { order: 2; margin: 12px 0 0; width: 100%; max-width: 100%; }
+body.side-layout #degreeDisplay #dirAdvice { order: 2; margin: 12px 0 0; width: 100%; max-width: 100%; max-height: max(110px, calc(100vh - var(--side-top, 180px) - 110px)); max-height: max(110px, calc(100dvh - var(--side-top, 180px) - 110px)); }
 body.side-layout #degreeBox { width: 100%; }
 body.side-layout #statusBadgeWrapper {
     top: var(--side-top, 180px); bottom: auto;
