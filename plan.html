@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>วิเคราะห์บ้าน - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.21-2";</script>
+    <script src="js/version-check.js?v=2026.10.21-2"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn-char { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Songti TC', serif; }
+        #planCanvas { touch-action: none; display: block; width: 100%; border-radius: 12px; cursor: crosshair; }
+        .seg { display: inline-flex; border: 1px solid #334155; border-radius: 10px; overflow: hidden; }
+        .seg button { font-size: 12px; padding: 7px 11px; background: #1e293b; color: #cbd5e1; border-right: 1px solid #334155; }
+        .seg button:last-child { border-right: 0; }
+        .seg button[aria-pressed="true"] { background: #eab308; color: #111827; font-weight: 600; }
+        .tool { font-size: 12px; padding: 7px 11px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; }
+        .tool[aria-pressed="true"] { background: #ca8a04; border-color: #eab308; color: #111827; font-weight: 600; }
+        .tool:focus-visible, .seg button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+        .room-card.flash { box-shadow: 0 0 0 2px #facc15; }
+        input, select { font-size: 16px; } /* iPhone ไม่ซูมเองเมื่อแตะช่องกรอก */
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
+            <a href="index.html" class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+            <h1 class="text-lg md:text-xl font-bold text-yellow-400">🏠 วิเคราะห์บ้าน</h1>
+            <div id="chips" class="flex flex-wrap gap-1.5 md:ml-auto text-[12px]"></div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-3 md:p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-4">
+        <!-- ===== แปลน ===== -->
+        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-3 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-2" id="floorBar"></div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <label class="tool cursor-pointer bg-blue-600 border-blue-500 text-white" for="planFile">📄 เลือกรูปแปลน</label>
+                <input type="file" id="planFile" accept="image/*" class="hidden">
+                <button type="button" class="tool" id="toolCorners" aria-pressed="false">⬚ จิ้มมุมบ้าน</button>
+                <button type="button" class="tool" id="toolMissing" aria-pressed="false">◩ มุมขาด</button>
+                <button type="button" class="tool" id="toolName" aria-pressed="false">✎ ตั้งชื่อห้อง</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-2 text-[12px] text-slate-400">
+                <span>หน้าบ้านอยู่ด้าน</span>
+                <div class="seg" id="frontSeg">
+                    <button type="button" data-v="0" aria-pressed="true">บน</button>
+                    <button type="button" data-v="1" aria-pressed="false">ขวา</button>
+                    <button type="button" data-v="2" aria-pressed="false">ล่าง</button>
+                    <button type="button" data-v="3" aria-pressed="false">ซ้าย</button>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <div class="seg" id="modeSeg">
+                    <button type="button" data-v="grid" aria-pressed="true">ตาราง 9 ช่อง</button>
+                    <button type="button" data-v="pie" aria-pressed="false">วงกลม 8 ทิศ</button>
+                </div>
+                <div class="seg" id="layerSeg">
+                    <button type="button" data-v="fs" aria-pressed="false">ดาวเหิน</button>
+                    <button type="button" data-v="8m" aria-pressed="false">八宅 เจ้าของ</button>
+                    <button type="button" data-v="both" aria-pressed="true">ทั้งสอง</button>
+                </div>
+            </div>
+            <p id="hint" class="text-[12px] text-amber-200 bg-amber-950/40 border border-amber-800/60 rounded-lg px-3 py-2 mb-2"></p>
+            <canvas id="planCanvas" aria-label="แปลนบ้านพร้อมตารางวิเคราะห์"></canvas>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-slate-400">
+                <span class="text-amber-400">■ ดาวภูเขา</span><span class="text-blue-400">■ ดาวน้ำ</span><span>■ ดาวยุค</span>
+                <span class="text-amber-400">▣ ดาวจรปี</span><span class="text-green-400">□ ดาวรุ่งของยุค</span>
+                <span>ป้ายมุมขวา = ดาว 八宅 ของเจ้าของบ้าน (เขียวดี แดงร้าย)</span>
+            </div>
+        </section>
+
+        <!-- ===== สรุป ===== -->
+        <section class="space-y-3 min-w-0">
+            <details id="setup" class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+                <summary class="cursor-pointer text-[13px] font-semibold text-sky-300">⚙️ ข้อมูลบ้านและเจ้าของบ้าน</summary>
+                <div class="grid grid-cols-2 gap-2 mt-3 text-[11px] text-slate-400">
+                    <label>ทิศหน้าบ้าน (°)<input type="number" id="inFacing" min="0" max="360" step="0.1" inputmode="decimal" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white"></label>
+                    <label>ปีที่สร้าง/รีโนเวท<input type="number" id="inYear" min="1864" max="2163" step="1" inputmode="numeric" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white"></label>
+                    <label class="col-span-2">ยุค (運)<select id="inPeriod" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white"></select></label>
+                    <label>วันเวลาเกิดเจ้าของบ้าน<input type="datetime-local" id="inBirth" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white"></label>
+                    <label>เพศ<select id="inGender" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white"><option value="M">ชาย</option><option value="F">หญิง</option></select></label>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-2">ข้อมูลชุดเดียวกับหน้าเข็มทิศ แก้ที่หน้าไหนก็เปลี่ยนทั้งสองหน้า · วัดทิศบ้านด้วยเข็มทิศได้ที่ <a href="index.html" class="text-sky-300 underline">หน้าเข็มทิศ</a></p>
+            </details>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+                <h2 class="text-[14px] font-semibold text-sky-300 mb-2">📋 สรุปห้องต่อห้อง <span id="floorLabel" class="text-slate-400 font-normal text-[12px]"></span></h2>
+                <div id="patterns" class="space-y-1.5 mb-2"></div>
+                <div id="rooms" class="space-y-2"></div>
+                <p class="text-[10px] text-slate-500 mt-3">คำแนะนำสร้างจากหลักทั่วไปของดาวเหิน (玄空飛星) และ 八宅 ใช้ประกอบการตัดสินใจ ควรปรึกษาผู้รู้ก่อนรีโนเวทใหญ่</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/data.js?v=2026.10.21-2"></script>
+    <script src="js/calc.js?v=2026.10.21-2"></script>
+    <script src="js/fs-core.js?v=2026.10.21-2"></script>
+    <script src="js/person-core.js?v=2026.10.21-2"></script>
+    <script src="js/plan.js?v=2026.10.21-2"></script>
+</body>
+</html>
