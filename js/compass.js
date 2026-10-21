@@ -37,7 +37,8 @@ function handleOrientation(event) {
     }
     if (heading === null || isNaN(heading)) return;
     relativeMode = false;
-    targetDegree = norm360(heading + screenAngle());
+    // บวกมุมเบี่ยงแม่เหล็กเมื่อผู้ใช้เลือกทิศเหนือจริง (js/magdec.js)
+    targetDegree = norm360(heading + screenAngle() + northOffset());
     lastHeadingAt = Date.now();
 }
 
@@ -90,7 +91,7 @@ async function startAbsoluteSensor() {
             const north = 1 - 2 * (x * x + z * z);
             if (Math.hypot(east, north) < 0.2) return; // ถือเครื่องตั้งตรงเกินไป
             relativeMode = false;
-            targetDegree = norm360(Math.atan2(east, north) * 180 / Math.PI + screenAngle());
+            targetDegree = norm360(Math.atan2(east, north) * 180 / Math.PI + screenAngle() + northOffset());
             lastHeadingAt = Date.now();
         });
         absSensor.addEventListener('error', () => { absSensor = null; });
