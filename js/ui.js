@@ -81,6 +81,7 @@ function updateUI() {
     const p = state.calc.personBazi.bazi;
     els.personBaziPanel.innerHTML = renderPillar(p.yg, p.yz, 'ปี') + renderPillar(p.mg, p.mz, 'เดือน') + renderPillar(p.dg, p.dz, 'วัน') + renderPillar(p.hg, p.hz, 'ยาม');
     if (typeof renderHousePanel === 'function') renderHousePanel();
+    if (typeof renderPersonDetail === 'function') renderPersonDetail();
 
     let sumHtml = '';
     Object.keys(state.toggles).forEach(k => {
@@ -287,11 +288,12 @@ function updateAdviceBox(deg) {
             }
         }
     } else if (state.viewMode === 'KUA') {
+        const pst = (typeof personStarOf === 'function') ? personStarOf(dirCode) : null; // ดาว 八宅 ของทิศนี้ (js/person.js)
         if (state.calc.auspiciousDirs.includes(dirCode)) { 
-            title = "ทิศมงคลประจำตัว"; remedy = "ส่งเสริมโชคลาภ สุขภาพ ความสัมพันธ์"; 
+            title = pst ? `ทิศมงคล · ${pst.c} ${pst.th}` : "ทิศมงคลประจำตัว"; remedy = pst ? pst.tip : "ส่งเสริมโชคลาภ สุขภาพ ความสัมพันธ์"; 
             els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-emerald-600'; 
         } else { 
-            title = "ทิศร้ายประจำตัว"; remedy = "หลีกเลี่ยงการหันหัวเตียง หรือโต๊ะทำงาน"; 
+            title = pst ? `ทิศร้าย · ${pst.c} ${pst.th}` : "ทิศร้ายประจำตัว"; remedy = pst ? pst.tip : "หลีกเลี่ยงการหันหัวเตียง หรือโต๊ะทำงาน"; 
             els.dirAdvice.classList.replace('border-slate-300', 'border-red-500'); 
             els.dirAdvice.classList.replace('border-indigo-500', 'border-red-500'); 
             els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-red-600'; hasBad = true; 
