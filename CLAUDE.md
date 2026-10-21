@@ -14,6 +14,7 @@
 - `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `plan.js`
 - `annual.html` (ผังพลังประจำปี): `js/version-check.js` → `data.js` → `calc.js` → `fs-core.js` → `annual.js`
 - `measure.html` (วัดทิศบ้านจากแผนที่, Leaflet): `js/version-check.js` → `magdec.js` → `fs-core.js` → `measure.js`
+- `sun.html` (วัดทิศจากเงาแดด): `js/version-check.js` → `magdec.js` → `fs-core.js` → `sunpos.js` → `sun.js`
 - `magdec.js` = มุมเบี่ยงแม่เหล็ก WMM-2025 + ทิศอ้างอิงที่ผู้ใช้เลือก (`luopan_north`: แม่เหล็ก/ทิศเหนือจริง)
 - `fs-core.js` / `person-core.js` = สูตรล้วน (ดาวเหิน, 八宅, Kua) ใช้ร่วมกันทั้งสองหน้า ห้ามอ้างถึง `state` หรือ DOM ของหน้าเข็มทิศ
 - ข้อมูลร่วมใน localStorage: `luopan_house`, `luopan_birthDate`, `luopan_gender`; แปลนอยู่ใน `luopan_plan`
@@ -21,6 +22,6 @@
 
 ## ทุกครั้งที่แก้ไข
 1. ทำใน branch ใหม่ เปิด Pull Request แล้ว **merge เองได้เลยหลังทดสอบผ่าน** (เจ้าของอนุญาตแล้ว) จากนั้นรอ GitHub Pages สร้างเว็บเสร็จ และแจ้งเจ้าของ
-2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html` และ `measure.html`
+2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html`, `measure.html` และ `sun.html`
    (ไม่งั้นผู้ใช้จะเห็นของเก่าจาก cache นานถึง 10 นาที)
 3. ข้อความในแอปและคอมเมนต์เป็นภาษาไทย
