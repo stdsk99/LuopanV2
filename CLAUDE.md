@@ -11,7 +11,7 @@
 
 ## โครงสร้าง (โหลดตามลำดับ)
 - `index.html` (เข็มทิศ): `js/version-check.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `compass.js` → `fs-core.js` → `flyingstar.js` → `person-core.js` → `person.js` → `main.js`
-- `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `data.js` → `calc.js` → `fs-core.js` → `person-core.js` → `plan.js`
+- `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `plan.js`
 - `fs-core.js` / `person-core.js` = สูตรล้วน (ดาวเหิน, 八宅, Kua) ใช้ร่วมกันทั้งสองหน้า ห้ามอ้างถึง `state` หรือ DOM ของหน้าเข็มทิศ
 - ข้อมูลร่วมใน localStorage: `luopan_house`, `luopan_birthDate`, `luopan_gender`; แปลนอยู่ใน `luopan_plan`
 เป็นสคริปต์ธรรมดา (ไม่ใช่ module) ใช้ตัวแปรร่วมกัน: โค้ดที่รันทันทีต้องอ้างถึงสิ่งที่ประกาศในไฟล์ก่อนหน้าเท่านั้น

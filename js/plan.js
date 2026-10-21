@@ -98,6 +98,15 @@ function analyzeCell(g) {
         score += sink ? -v * 0.4 : v;
     }
     res.score = score;
+    // ความหมายคู่ดาวภูเขา+น้ำ (js/fs-pairs.js): ดาวรุ่ง/กำลังมาและไม่มีดาว 5 → อ่านด้านดี นอกนั้นอ่านด้านร้าย
+    const pr = fsPair(st.m, st.f), five = st.m === 5 || st.f === 5;
+    const lively = ['wang', 'sheng'].includes(tm) || ['wang', 'sheng'].includes(tf);
+    res.pair = { key: pr.key, t: pr.t, good: lively && !five && !/ไม่มีด้านดี/.test(pr.g), r: pr.r };
+    res.pair.text = res.pair.good ? pr.g : pr.b;
+    // ดาวจรปีมาเจอดาวภูเขา/น้ำ เป็นคู่ร้าย
+    res.trigger = [st.m, st.f].map(x => fsPair(st.a, x)).filter(q => FS_TRIGGER_BAD.includes(q.key))
+        .filter((q, i, arr) => arr.findIndex(z => z.key === q.key) === i)
+        .map(q => `ปีนี้ดาวจร ${st.a} มาเจอเป็นคู่ ${q.key} (${q.t}): ${q.b}`);
     // เหตุผลที่อ่านเข้าใจง่าย เรียงจากสำคัญ
     const n = res.notes;
     if (st.m === C && st.f === C) n.push(`ดาวรุ่งคู่ ${C}-${C}`);
@@ -351,6 +360,9 @@ function renderRooms(cells) {
                 </div>
                 ${c.st && !c.missing ? `<div class="font-mono text-[11px] text-slate-400 mt-0.5">ภูเขา ${c.st.m} · น้ำ ${c.st.f} · ยุค ${c.st.b} · จรปี ${c.st.a}</div>` : ''}
                 <div class="text-[12px] text-slate-300 leading-relaxed mt-0.5">${c.notes.join(' · ') || (calcNow.chart ? '' : 'ใส่ทิศบ้านเพื่อดูผล')}</div>
+                ${c.pair ? `<div class="text-[12px] leading-relaxed mt-1 ${c.pair.good ? 'text-emerald-200' : 'text-amber-200'}"><b>คู่ดาว ${c.st.m}-${c.st.f} ${c.pair.t}:</b> ${c.pair.text}</div>
+                <div class="text-[11px] text-sky-300 leading-relaxed">เสริมดีลดร้าย: ${c.pair.r}</div>` : ''}
+                ${c.trigger && c.trigger.length ? `<div class="text-[11px] text-red-300 leading-relaxed">⚠ ${c.trigger.join(' · ')}</div>` : ''}
             </div></div>`;
     }).join('');
     box.querySelectorAll('.room-name').forEach(inp => {
