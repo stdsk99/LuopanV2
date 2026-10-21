@@ -94,6 +94,29 @@
                 </div>
 
                 <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-[13px] font-semibold text-sky-400 mb-3 flex items-center gap-1.5">🏠 ทิศบ้าน (ดาวเหิน)</label>
+                    <div class="space-y-3">
+                        <div id="houseInfo" class="text-[12px] text-slate-300 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700">ยังไม่ได้บันทึกทิศบ้าน</div>
+                        <button id="houseSaveBtn" class="w-full bg-emerald-600/80 hover:bg-emerald-500 text-white text-[12px] py-2.5 rounded-lg border border-emerald-500 transition-colors">📍 บันทึกทิศหน้าบ้าน = องศาตอนนี้</button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label for="houseFacing" class="block text-[11px] text-slate-400 mb-1">ทิศหน้าบ้าน (°)</label>
+                                <input type="number" id="houseFacing" min="0" max="360" step="0.1" inputmode="decimal" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:border-yellow-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label for="houseYear" class="block text-[11px] text-slate-400 mb-1">ปีที่สร้าง/รีโนเวท</label>
+                                <input type="number" id="houseYear" min="1864" max="2163" step="1" inputmode="numeric" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:border-yellow-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="housePeriod" class="block text-[11px] text-slate-400 mb-1">ยุค (運)</label>
+                            <select id="housePeriod" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:border-yellow-500 focus:outline-none"></select>
+                        </div>
+                        <p class="text-[10px] text-slate-500 leading-snug">ยืนหน้าประตู หันหัวเครื่องออกนอกบ้าน รอตัวเลขนิ่ง แล้วกดบันทึก หรือพิมพ์องศาเอง จากนั้นเลือกโหมด "ดาวเหินของบ้าน"</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
                     <label class="block text-[13px] font-semibold text-blue-400 mb-3 flex items-center gap-1.5">🗺️ แปลนบ้าน (Floor Plan)</label>
                     <div class="space-y-3">
                         <input type="file" id="fpInput" accept="image/*" class="hidden">
@@ -155,6 +178,7 @@
                         <button class="layer-btn active px-4 py-3 bg-slate-800 border border-yellow-600 text-yellow-400 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="TIME"><span class="text-red-400 text-lg">🕒</span> แสดงทิศร้ายกาลเวลา (Afflictions)</button>
                         <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="KUA"><span class="text-emerald-400 text-lg">👤</span> เฉพาะทิศมงคลบุคคล (8 Mansions)</button>
                         <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="STARS"><span class="text-blue-400 text-lg">⭐</span> เฉพาะดาวเหิน (Flying Stars)</button>
+                        <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="HOUSE"><span class="text-sky-400 text-lg">🏠</span> ดาวเหินของบ้าน (House Flying Stars)</button>
                         <button class="layer-btn px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 rounded-xl text-[13px] font-medium text-left transition-all flex items-center gap-2.5" data-layer="64GUA"><span class="text-indigo-400 text-lg">☯️</span> ผัง 64 ข่วย (Xuan Kong Da Gua)</button>
                     </div>
                 </div>
@@ -170,6 +194,10 @@
                     <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-600/50 shadow-inner">
                         <h3 class="text-[11px] md:text-[12px] font-bold text-emerald-400 mb-2.5 flex items-center gap-1.5 border-b border-slate-700 pb-1.5">👤 ดวงบุคคล</h3>
                         <div class="grid grid-cols-4 gap-1.5" id="personBaziPanel"></div>
+                    </div>
+                    <div class="bg-slate-800/60 rounded-xl p-3 border border-slate-600/50 shadow-inner">
+                        <h3 class="text-[11px] md:text-[12px] font-bold text-sky-400 mb-2.5 flex items-center gap-1.5 border-b border-slate-700 pb-1.5">⭐ ดาวเหินของบ้าน</h3>
+                        <div id="housePanel"></div>
                     </div>
                 </div>
 
@@ -222,6 +250,7 @@
     <script src="js/ui.js"></script>
     <script src="js/luopan3d.js"></script>
     <script src="js/compass.js"></script>
+    <script src="js/flyingstar.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

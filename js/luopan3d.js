@@ -237,6 +237,7 @@ function draw2DTexture() {
     const size = texSize; const cx = size / 2; const cy = size / 2;
     ctx.clearRect(0, 0, size, size);
     hasPulse = false;
+    centerRing.visible = state.viewMode !== 'HOUSE'; // โหมดดาวเหินของบ้านใช้กลางจานแสดงดาวกลางบ้าน
     const rTicks = size * 0.48; const rBrn = size * 0.38; 
     const rDir = size * 0.28; const rStar = size * 0.16; const rTai = size * 0.08;
 
@@ -286,6 +287,9 @@ function draw2DTexture() {
         }
         drawSeg(rTai, rStar, 0, 360, 'transparent', ringColor, 2); 
         drawTxt("ผัง 64 ข่วย", rTai * 1.6, 0, '#ffffff', `600 ${baseFontSize*0.6}px Prompt`, 'rgba(0,0,0,0.8)', 6);
+    } else if (state.viewMode === 'HOUSE') {
+        // โหมดดาวเหินของบ้าน (js/flyingstar.js)
+        drawHouseDial({ rTicks, rBrn, rDir, rStar, rTai, drawSeg, drawTxt, baseFontSize, baseBgColor });
     } else {
         ctx.beginPath(); ctx.arc(0,0, rTicks, 0, 2*Math.PI); ctx.fillStyle = baseBgColor; ctx.fill(); 
         const ringColor = 'rgba(212,175,55,0.4)';
@@ -385,6 +389,7 @@ function draw2DTexture() {
         }
     }
     
+    if (state.viewMode === 'HOUSE') { ctx.restore(); texture.needsUpdate = true; pulseTexture.needsUpdate = true; pulseMesh.visible = false; return; } // กลางจานแสดงดาวกลางบ้านแทนหยินหยาง
     ctx.beginPath(); ctx.arc(0, 0, rTai, 0, 2*Math.PI); ctx.fillStyle = baseBgColor; ctx.fill(); 
     const tj = rTai * 0.8;
     ctx.beginPath(); ctx.arc(0, 0, tj, Math.PI/2, Math.PI*1.5); ctx.fillStyle = '#ffffff'; ctx.fill();
