@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ตรวจเซนเซอร์เข็มทิศ</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left));
+         background: #0f172a; color: #e2e8f0; font: 15px/1.5 system-ui, "Sarabun", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #fde047; }
+  p { margin: 0 0 12px; color: #94a3b8; font-size: 13px; }
+  button { font: inherit; font-size: 16px; padding: 10px 18px; border-radius: 10px; border: 0; background: #4f46e5; color: #fff; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 7px 6px; border-top: 1px solid #334155; vertical-align: top; word-break: break-word; }
+  td:first-child { color: #94a3b8; width: 46%; font-size: 13px; }
+  td:last-child { font-family: ui-monospace, monospace; }
+  .ok { color: #4ade80; } .bad { color: #f87171; } .warn { color: #facc15; }
+  .big { font-size: 28px; font-weight: 700; color: #fde047; }
+  .box { background: #1e293b; border-radius: 12px; padding: 12px; margin-top: 14px; font-size: 13px; color: #cbd5e1; }
+</style>
+</head>
+<body>
+<h1>ตรวจเซนเซอร์เข็มทิศ</h1>
+<p>วางมือถือราบ หัวเครื่องชี้ไปทางเดียวกับแอปเข็มทิศที่ใช้เทียบ แล้วแคปหน้าจอนี้ส่งมา</p>
+<button id="go">เริ่มทดสอบ</button>
+<table id="t"></table>
+<div class="box" id="summary">กด "เริ่มทดสอบ" แล้วรอ 5 วินาที</div>
+
+<script>
+const rows = {
+  secure: 'เปิดผ่าน https', ua: 'เบราว์เซอร์',
+  pAcc: 'สิทธิ์ accelerometer', pGyr: 'สิทธิ์ gyroscope', pMag: 'สิทธิ์ magnetometer',
+  ori: 'deviceorientation (ครั้ง)', oriAbs: '  ↳ absolute', oriAlpha: '  ↳ ทิศจาก alpha',
+  abs: 'deviceorientationabsolute (ครั้ง)', absHead: '  ↳ ทิศ',
+  ios: 'webkitCompassHeading (iPhone)',
+  gs: 'AbsoluteOrientationSensor', gsHead: '  ↳ ทิศ'
+};
+const t = document.getElementById('t'), cell = {};
+for (const k in rows) { const tr = t.insertRow(); tr.insertCell().textContent = rows[k]; cell[k] = tr.insertCell(); cell[k].textContent = '—'; }
+const set = (k, v, cls) => { cell[k].textContent = v; cell[k].className = cls || ''; };
+const n360 = d => ((d % 360) + 360) % 360;
+let cOri = 0, cAbs = 0, cAbsNull = 0, cGs = 0;
+
+set('secure', window.isSecureContext ? 'ใช่' : 'ไม่ใช่', window.isSecureContext ? 'ok' : 'bad');
+set('ua', navigator.userAgent.replace(/^Mozilla\/5\.0 /, ''));
+set('gs', 'AbsoluteOrientationSensor' in window ? 'รองรับ (ยังไม่เริ่ม)' : 'ไม่รองรับ', 'AbsoluteOrientationSensor' in window ? '' : 'warn');
+
+document.getElementById('go').onclick = async () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+  }
+  if (navigator.permissions) {
+    for (const [k, name] of [['pAcc', 'accelerometer'], ['pGyr', 'gyroscope'], ['pMag', 'magnetometer']]) {
+      try { const r = await navigator.permissions.query({ name }); set(k, r.state, r.state === 'granted' ? 'ok' : r.state === 'denied' ? 'bad' : 'warn'); }
+      catch (e) { set(k, 'ถามไม่ได้', 'warn'); }
+    }
+  }
+  window.addEventListener('deviceorientation', e => {
+    cOri++; set('ori', cOri, 'ok');
+    set('oriAbs', String(e.absolute), e.absolute ? 'ok' : 'warn');
+    if (e.alpha != null) set('oriAlpha', n360(360 - e.alpha).toFixed(1) + '°');
+    if (typeof e.webkitCompassHeading === 'number') set('ios', e.webkitCompassHeading.toFixed(1) + '°', 'ok');
+  });
+  window.addEventListener('deviceorientationabsolute', e => {
+    if (e.alpha == null) { cAbsNull++; set('abs', cAbs + ' (ค่าว่าง ' + cAbsNull + ')', cAbs ? 'ok' : 'warn'); if (!cAbs) set('absHead', 'alpha = null', 'warn'); return; }
+    cAbs++; set('abs', cAbs + (cAbsNull ? ' (ค่าว่าง ' + cAbsNull + ')' : ''), 'ok');
+    set('absHead', n360(360 - e.alpha).toFixed(1) + '°', 'ok big');
+  });
+  if ('AbsoluteOrientationSensor' in window) {
+    try {
+      const s = new AbsoluteOrientationSensor({ frequency: 20, referenceFrame: 'device' });
+      s.onreading = () => {
+        cGs++; set('gs', 'ทำงาน (' + cGs + ' ครั้ง)', 'ok');
+        const [x, y, z, w] = s.quaternion;
+        set('gsHead', n360(Math.atan2(2 * (x * y - z * w), 1 - 2 * (x * x + z * z)) * 180 / Math.PI).toFixed(1) + '°', 'ok big');
+      };
+      s.onerror = ev => set('gs', 'ผิดพลาด: ' + (ev.error && (ev.error.name + ' ' + ev.error.message)), 'bad');
+      s.start();
+    } catch (e) { set('gs', 'เริ่มไม่ได้: ' + e.name + ' ' + e.message, 'bad'); }
+  }
+  setTimeout(() => {
+    const lines = [];
+    if (!window.isSecureContext) lines.push('❌ ไม่ได้เปิดผ่าน https เซนเซอร์จะไม่ทำงาน');
+    if (cAbs > 0) lines.push('✅ deviceorientationabsolute ทำงาน แอปควรอ่านทิศจริงได้');
+    else lines.push(cAbsNull ? '⚠️ deviceorientationabsolute ส่งมาแต่ค่าว่าง' : '⚠️ ไม่มีอีเวนต์ deviceorientationabsolute');
+    if (cGs > 0) lines.push('✅ AbsoluteOrientationSensor ทำงาน ใช้เป็นช่องทางสำรองได้');
+    else if ('AbsoluteOrientationSensor' in window) lines.push('⚠️ AbsoluteOrientationSensor ไม่ส่งค่า');
+    if (cOri > 0 && cAbs === 0 && cGs === 0) lines.push('ℹ️ ได้แค่ค่าแบบสัมพัทธ์ (ไม่อิงทิศเหนือ)');
+    if (cOri === 0 && cAbs === 0 && cGs === 0) lines.push('❌ ไม่ได้รับค่าเซนเซอร์เลย ตรวจสิทธิ์ "เซ็นเซอร์ตรวจจับการเคลื่อนไหว" ใน Chrome');
+    lines.push('เทียบตัวเลขทิศสีเหลืองกับแอปเข็มทิศอื่น ถ้าต่างกันมากให้แจ้งด้วย');
+    document.getElementById('summary').innerHTML = lines.join('<br>');
+  }, 5000);
+};
+</script>
+</body>
+</html>

@@ -1319,8 +1319,9 @@
             if (typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)) {
                 heading = event.webkitCompassHeading;
             } else if (event.type === 'deviceorientationabsolute') {
+                if (event.alpha === null || event.alpha === undefined) return; // เซนเซอร์ยังไม่พร้อม
                 gotAbsoluteEvent = true;
-                if (event.alpha !== null) heading = 360 - event.alpha;
+                heading = 360 - event.alpha;
             } else if (event.absolute === true && !gotAbsoluteEvent && event.alpha !== null) {
                 heading = 360 - event.alpha; // เบราว์เซอร์ที่ส่ง absolute มากับ deviceorientation
             } else if (event.alpha !== null && event.alpha !== undefined) {
@@ -1359,10 +1360,44 @@
                 } else { 
                     window.addEventListener('deviceorientationabsolute', handleOrientation); 
                     window.addEventListener('deviceorientation', handleOrientation);
+                    startAbsoluteSensor();
                     startCompass(); 
                 }
             } else { stopCompass(); }
         });
+
+        // ช่องทางสำรองบน Android: Generic Sensor API (AbsoluteOrientationSensor)
+        // บางเครื่อง Chrome ไม่ส่งอีเวนต์ deviceorientationabsolute ทั้งที่มีเซนเซอร์แม่เหล็ก
+        // แต่ยังอ่านทิศจริงผ่าน AbsoluteOrientationSensor ได้
+        let absSensor = null;
+        async function startAbsoluteSensor() {
+            if (!('AbsoluteOrientationSensor' in window)) return;
+            try {
+                if (navigator.permissions && navigator.permissions.query) {
+                    const names = ['accelerometer', 'gyroscope', 'magnetometer'];
+                    const results = await Promise.all(names.map(n => navigator.permissions.query({ name: n }).catch(() => null)));
+                    if (results.some(r => r && r.state === 'denied')) return;
+                }
+                absSensor = new AbsoluteOrientationSensor({ frequency: 30, referenceFrame: 'device' });
+                absSensor.addEventListener('reading', () => {
+                    if (!state.isCompassActive || gotAbsoluteEvent || !absSensor.quaternion) return;
+                    // quaternion หมุนพิกัดเครื่อง -> พิกัดโลก (x=ตะวันออก, y=เหนือ, z=ขึ้น)
+                    // ทิศที่หัวเครื่องชี้ = แกน y ของเครื่องเมื่อแปลงเป็นพิกัดโลก
+                    const [x, y, z, w] = absSensor.quaternion;
+                    const east = 2 * (x * y - z * w);
+                    const north = 1 - 2 * (x * x + z * z);
+                    if (Math.hypot(east, north) < 0.2) return; // ถือเครื่องตั้งตรงเกินไป
+                    relativeMode = false;
+                    targetDegree = norm360(Math.atan2(east, north) * 180 / Math.PI + screenAngle());
+                    lastHeadingAt = Date.now();
+                });
+                absSensor.addEventListener('error', () => { absSensor = null; });
+                absSensor.start();
+            } catch (e) { absSensor = null; }
+        }
+        function stopAbsoluteSensor() {
+            if (absSensor) { try { absSensor.stop(); } catch (e) {} absSensor = null; }
+        }
 
         function startCompass() { 
             state.isCompassActive = true; 
@@ -1392,6 +1427,7 @@
             state.isCompassActive = false; 
             window.removeEventListener('deviceorientation', handleOrientation); 
             window.removeEventListener('deviceorientationabsolute', handleOrientation); 
+            stopAbsoluteSensor();
             els.compassBtn.classList.replace('bg-red-600/95', 'bg-indigo-600/95'); 
             els.compassBtn.innerHTML = '<svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>'; 
             els.manualRotationControl.classList.remove('hidden'); 
