@@ -124,9 +124,69 @@ let house = null;            // { facing, year, period: 'auto' | 1..9, savedAt }
 try { house = JSON.parse(localStorage.getItem('luopan_house') || 'null'); } catch (e) { house = null; }
 function houseSave() { try { localStorage.setItem('luopan_house', JSON.stringify(house)); } catch (e) {} }
 function housePeriod() { return !house ? 9 : (house.period === 'auto' ? housePeriodOf(house.year) : +house.period); }
+// ---------- เส้นองศาอันตราย 5 แบบ (ตาม ChkDownAngle ของ APK ดาวเหิน F04) ----------
+// แต่ละเส้นกว้าง 0.5–1° · ตรวจตามลำดับ ชนิดหลังทับชนิดแรก (เหมือน APK) · ความหมายเขียนสรุปเอง
+const HOUSE_LINES = [
+    { th: 'เส้นคงฮ้ง', cn: '空亡', t: 'รอยต่อระหว่างภูเขา 2 ลูก พลังไม่ชัด ไร้กำลัง ผลดีร้ายคลุมเครือ' },
+    { th: 'เส้นเขี่ยสัวะ', cn: '大空亡', t: 'รอยต่อของทิศหลัก 8 ทิศ ส่งผลแตกแยก ทะเลาะ หย่าร้าง ลูกน้องหักหลัง การเงินสะดุด' },
+    { th: 'เส้นฉุกข่วย', cn: '出卦', t: 'ขอบครึ่งองศาข้างรอยต่อทิศหลัก พลังออกนอกกัว เสี่ยงเรื่องชู้สาว คดีความ' },
+    { th: 'เส้นอิมซาเอี้ยงฉ่อ', cn: '陰陽差錯', t: 'ขอบรอยต่อภูเขาที่หยินหยางต่างกัน พลังไม่เสถียร เจริญก่อนแล้วถอย อำนาจวาสนาไม่มั่นคง' },
+    { th: 'เส้นเทียงปั้วคงฮ้ง', cn: '天盤空亡', t: 'รอยต่อของวงฟ้า กระทบระบบทางน้ำ ขาดโชคลาภ' }
+];
+function houseDownLine(deg) {
+    const d = houseNorm360(deg);
+    const inR = (a, b) => { a = houseNorm360(a); b = houseNorm360(b); return a <= b ? (d >= a && d <= b) : (d >= a || d <= b); };
+    let hit = null;
+    const test = (type, a, b) => { if (inR(a, b)) hit = { type, a: houseNorm360(a), b: houseNorm360(b), ...HOUSE_LINES[type] }; };
+    for (let k = 0; k < 8; k++) { const o = k * 45; test(0, o + 7, o + 8); test(0, o + 37, o + 38); }
+    for (let k = 0; k < 8; k++) { const o = k * 45; test(1, o + 22, o + 23); }
+    for (let k = 0; k < 8; k++) { const o = k * 45; test(2, o + 338, o + 338.5); test(2, o + 21.5, o + 22); }
+    for (let k = 0; k < 8; k++) { const o = k * 45; test(3, o + 36.5, o + 37); test(3, o + 38, o + 38.5); }
+    for (let k = 0; k < 12; k++) { const o = k * 30; test(4, o + 14.5, o + 15.5); }
+    return hit;
+}
 function houseWarning(facing) {
+    const ln = houseDownLine(facing);
+    if (ln) return `⚠️ ทิศหน้าบ้านตก${ln.th} (${ln.cn}) ช่วง ${ln.a}°–${ln.b}°: ${ln.t} · ควรวัดซ้ำหลายจุด`;
     const f = houseMountainOf(facing);
-    if (f.dist <= 1.5) return f.pdist <= 1.5 ? '⚠️ ทิศหน้าบ้านตกเส้นแบ่งกัว (大空亡) ควรวัดซ้ำหลายจุด' : '⚠️ ทิศหน้าบ้านตกเส้นแบ่งภูเขา (小空亡) ควรวัดซ้ำหลายจุด';
-    if (f.dist <= 3) return '⚠️ ทิศอยู่ช่วง 兼 (ห่างเส้นแบ่ง ' + f.dist.toFixed(1) + '°) บางสำนักใช้ผังทดแทน (替卦)';
+    if (f.dist <= 3) return '⚠️ ทิศอยู่ช่วง 兼 (ห่างเส้นแบ่งภูเขา ' + f.dist.toFixed(1) + '°) บางสำนักใช้ผังทดแทน (替卦)';
     return '';
+}
+
+// ---------- 零正神 (ตามรายการในแอป F04: 正神 / 反正神 / 零神 / 反零神) ----------
+// 正神 = วังประจำตัวของเลขยุค, 零神 = วังตรงข้าม · ยุคหน้าใช้หลักเดียวกันกับเลขยุคถัดไป
+const HOUSE_HOME_PAL = { 1: 0, 2: 5, 3: 2, 4: 3, 6: 7, 7: 6, 8: 1, 9: 4 };
+function houseZeroDirs(C) {
+    if (C === 5) return [];
+    const nxt = C === 9 ? 1 : (C === 4 ? 6 : C + 1);
+    const z = HOUSE_HOME_PAL[C], nz = HOUSE_HOME_PAL[nxt];
+    return [
+        { pal: z, k: 'zheng', th: 'เจี่ยซิ้ง', cn: '正神', out: 'ภายนอกควรมีภูเขา ตึก หรือที่สูง ไม่ควรเจอน้ำ', ins: 'ภายในโปร่ง มีประตู หน้าต่าง ช่องลมรับพลัง', when: `ยุค ${C}` },
+        { pal: (z + 4) % 8, k: 'ling', th: 'หลั่งซิ้ง', cn: '零神', out: 'ภายนอกควรมีน้ำ ที่ต่ำ หรือถนน', ins: 'ภายในสงบ ทึบ ไม่เคลื่อนไหว (ยกเว้นตั้งน้ำเพื่อเรียกโชค)', when: `ยุค ${C}` },
+        { pal: nz, k: 'nzheng', th: 'หงั่วเจี่ยซิ้ง', cn: '反正神', out: 'เตรียมไว้: ยุคหน้าทิศนี้ควรมีที่สูง', ins: 'ภายในโปร่ง', when: `ยุคหน้า (${nxt})` },
+        { pal: (nz + 4) % 8, k: 'nling', th: 'หงั่วหลั่งซิ้ง', cn: '反零神', out: 'เตรียมไว้: ยุคหน้าทิศนี้ควรมีน้ำ/ที่ต่ำ', ins: 'ภายในสงบ', when: `ยุคหน้า (${nxt})` }
+    ];
+}
+
+// ---------- ดาวจรวัน (ตาม CalDateStar ของ APK) ----------
+// ครึ่งปีหยาง (冬至 → 夏至) นับเพิ่มวันละ 1 · ครึ่งปีหยิน (夏至 → 冬至) นับลด · เลขเริ่มจากก้านกิ่งของวันสารท
+function houseSolsticeDay(year, lon) {
+    // หาเวลาที่ลองจิจูดดวงอาทิตย์ = lon (90 หรือ 270) ด้วยการแบ่งครึ่ง แล้วคืนวันที่ท้องถิ่นเวลา 00:00
+    const m = lon === 90 ? 5 : 11;
+    let lo = new Date(year, m, 15).getTime(), hi = new Date(year, m, 28).getTime();
+    for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; const dl = ((sunLongitude(new Date(mid)) - lon + 540) % 360) - 180; if (dl < 0) lo = mid; else hi = mid; }
+    const t = new Date(hi), day = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+    if (t.getHours() >= 23) day.setDate(day.getDate() + 1); // หลัง 23:00 นับเป็นวันถัดไป (ยามชวด)
+    return day;
+}
+function houseDayStar(date) {
+    const d0 = new Date(date.getFullYear(), date.getMonth(), date.getDate()), y = d0.getFullYear();
+    const sum = houseSolsticeDay(y, 90), win = houseSolsticeDay(y, 270);
+    const yin = d0 >= sum && d0 < win;
+    const ref = yin ? sum : (d0 >= win ? win : houseSolsticeDay(y - 1, 270));
+    const gz = getManualDayPillar(ref), top = gz.gan + 1, low = gz.zhi + 1;
+    let start = ((((top - low) % 12) + 12) % 12 * 5 + top) % 9 || 9;
+    if (yin) start = 10 - start;
+    const diff = Math.round((d0 - ref) / 86400000);
+    return { star: wrap9(yin ? start - diff : start + diff), yin };
 }

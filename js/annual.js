@@ -48,13 +48,22 @@ const M24 = ['壬','子','癸','丑','艮','寅','甲','卯','乙','辰','巽','
 // ---------- สถานะ ----------
 const NOW_YEAR = getExactPillars(new Date()).solarYear;  // ปีฮวงจุ้ยปัจจุบัน
 let YEAR = NOW_YEAR, ROT = 0, heading = null;
+let MODE = 'y';            // y = ดาวปี, m = ดาวเดือน, d = ดาววัน
+let DATE = new Date();     // วันที่สำหรับโหมดเดือน/วัน
+const TH_MONTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 let TOP = 'N';
 try { TOP = localStorage.getItem('luopan_annual_top') || 'N'; } catch (e) {}
 
 function render() {
-    const center = w9((2000 - YEAR) % 9), PERIOD = housePeriodOf(YEAR);
+    // ดาวกลางและกิ่ง (ใช้หาทิศอสูร/ทิศแตก) ตามโหมด ปี / เดือน / วัน
+    const px = getExactPillars(MODE === 'y' ? new Date(YEAR, 6, 1) : DATE);
+    let center, yg, yz, gzTitle, unit, extra = '';
+    if (MODE === 'y') { center = w9((2000 - YEAR) % 9); const gz = (YEAR - 4) % 60; yg = gz % 10; yz = gz % 12; gzTitle = `ปี <b class="text-yellow-300 cn">${GAN[yg]}${ZHI[yz]}</b> ${ZHI_TH[yz]}`; unit = 'ปี'; }
+    else if (MODE === 'm') { center = houseMonthStar(px.year, px.month); yg = px.bazi.mg; yz = px.month; gzTitle = `เดือน <b class="text-yellow-300 cn">${GAN[yg]}${ZHI[yz]}</b> (เดือน${ZHI_TH[yz]})`; unit = 'เดือน'; }
+    else { const ds = houseDayStar(DATE); center = ds.star; yg = px.bazi.dg; yz = px.day; gzTitle = `วัน <b class="text-yellow-300 cn">${GAN[yg]}${ZHI[yz]}</b>`; unit = 'วัน'; extra = ds.yin ? 'ครึ่งปีหยิน (夏至→冬至) นับลด' : 'ครึ่งปีหยาง (冬至→夏至) นับเพิ่ม'; }
+    const PERIOD = housePeriodOf(MODE === 'y' ? YEAR : px.solarYear);
+    document.getElementById('legTai').hidden = MODE !== 'y';
     const stars = PAL.map((p,i) => w9(center + OFFSET[i]));
-    const gz = (YEAR - 4) % 60, yg = gz % 10, yz = gz % 12;
     // ทิศอสูร: ทิศหลัก 90° ตามกลุ่มนักษัตร (เหมือน calc.js / APK)
     const SS = [[8,0,4,135,'ใต้'],[5,9,1,45,'ตะวันออก'],[2,6,10,315,'เหนือ'],[11,3,7,225,'ตะวันตก']];
     const ssRow = SS.find(r => r.slice(0,3).includes(yz)), ssMid = { 135:180, 45:90, 315:0, 225:270 }[ssRow[3]];
@@ -71,7 +80,7 @@ function render() {
     // วงนอก: ภูเขา 24 + ไฮไลต์
     h += `<circle r="292" fill="#0b1220" stroke="#334155" stroke-width="2"/>`;
     h += arc(262, 292, ssMid - 45, ssMid + 45, '#f97316', 'none', 0, 0.85);
-    h += arc(262, 292, taisui - 15, taisui + 15, '#a855f7', 'none', 0, 0.95);
+    if (MODE === 'y') h += arc(262, 292, taisui - 15, taisui + 15, '#a855f7', 'none', 0, 0.95);
     h += arc(262, 292, clash - 15, clash + 15, '#dc2626', 'none', 0, 0.95);
     for (let m = 0; m < 24; m++) {
       const d = m * 15 - 15; // กลางภูเขา (壬 = 345°)
@@ -100,7 +109,7 @@ function render() {
       const tags = [];
       const inSS = Math.abs(((d - ssMid + 540) % 360) - 180) < 45;
       if (inSS) tags.push('อสูร');
-      if (Math.abs(((d - taisui + 540) % 360) - 180) < 22.5) tags.push('ไท้ส่วย');
+      if (MODE === 'y' && Math.abs(((d - taisui + 540) % 360) - 180) < 22.5) tags.push('ไท้ส่วย');
       if (Math.abs(((d - clash + 540) % 360) - 180) < 22.5) tags.push('ชง');
       const warn = tags.length ? '⚠ ' + tags.join(' · ') : (rm.note ? '⚠ ' + rm.note : '');
       if (warn) h += `<text x="${cx}" y="${cy + 49}" font-size="10.5" fill="#fde047" font-weight="700" text-anchor="middle">${warn}</text>`;
@@ -116,20 +125,21 @@ function render() {
     { const [ax, ay] = P(300, 0), [bx, by] = P(286, -2.2), [cx2, cy2] = P(286, 2.2); h += `<polygon points="${ax},${ay} ${bx},${by} ${cx2},${cy2}" fill="#ef4444"/>`; }
     svg.innerHTML = h;
     // ---------- ข้อความ ----------
-    document.getElementById('yLabel').textContent = `${YEAR} (พ.ศ. ${YEAR + 543})`;
+    document.getElementById('yLabel').textContent = MODE === 'y' ? `${YEAR} (พ.ศ. ${YEAR + 543})`
+        : MODE === 'm' ? `${TH_MONTH[DATE.getMonth()]} ${DATE.getFullYear() + 543}` : `${DATE.getDate()} ${TH_MONTH[DATE.getMonth()]} ${DATE.getFullYear() + 543}`;
     document.getElementById('chips').innerHTML = [
-      `ปี <b class="text-yellow-300 cn">${GAN[yg]}${ZHI[yz]}</b> ${ZHI_TH[yz]}`,
+      gzTitle,
       `ดาวกลาง <b class="text-yellow-300">${center}</b>`,
       `ยุค <b class="text-yellow-300">${PERIOD}</b> (${housePeriodRange(PERIOD).join('–')})`,
-      `เปลี่ยนปีที่ 立春 4 ก.พ.`
+      MODE === 'y' ? `เปลี่ยนปีที่ 立春 4 ก.พ.` : MODE === 'm' ? `เดือนเปลี่ยนที่สารทต้นเดือน (節)` : extra
     ].map(t => `<span class="bg-slate-800 border border-slate-700 rounded-full px-2.5 py-1">${t}</span>`).join('');
     const pi = (deg) => Math.round(((deg % 360) + 360) % 360 / 45) % 8;
     document.getElementById('summary').innerHTML = `
-      <h2 class="text-[14px] font-semibold text-sky-300 mb-2">⚠️ สรุปทิศต้องระวังปี ${YEAR}</h2>
+      <h2 class="text-[14px] font-semibold text-sky-300 mb-2">⚠️ สรุปทิศต้องระวัง${unit}นี้</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
         <div class="rounded-lg border border-orange-500/70 bg-orange-950/30 p-2"><b class="text-orange-300">ทิศอสูร (三煞)</b> · ${ssRow[4]} ${ssRow[3]}°–${(ssRow[3] + 90) % 360}°<br><span class="text-slate-300">ห้ามซ่อม ต่อเติม ขุด เจาะ ห้ามนั่งหันหลังให้ทิศนี้</span></div>
-        <div class="rounded-lg border border-purple-500/70 bg-purple-950/30 p-2"><b class="text-purple-300">ไท้ส่วย (太歲)</b> · ${PAL_SHORT[PAL[pi(taisui)]]} (<span class="cn">${ZHI[yz]}</span> ${(taisui + 352.5) % 360}°–${(taisui + 7.5) % 360}°)<br><span class="text-slate-300">ห้ามรบกวน ห้ามนั่งหันหน้าเข้าหา</span></div>
-        <div class="rounded-lg border border-red-500/70 bg-red-950/30 p-2"><b class="text-red-300">ทิศแตก/ชง (歲破)</b> · ${PAL_SHORT[PAL[pi(clash)]]} (<span class="cn">${ZHI[(yz + 6) % 12]}</span>)<br><span class="text-slate-300">ไม่ควรเริ่มก่อสร้าง ซ่อมแซม</span></div>
+        ${MODE === 'y' ? `<div class="rounded-lg border border-purple-500/70 bg-purple-950/30 p-2"><b class="text-purple-300">ไท้ส่วย (太歲)</b> · ${PAL_SHORT[PAL[pi(taisui)]]} (<span class="cn">${ZHI[yz]}</span> ${(taisui + 352.5) % 360}°–${(taisui + 7.5) % 360}°)<br><span class="text-slate-300">ห้ามรบกวน ห้ามนั่งหันหน้าเข้าหา</span></div>` : ''}
+        <div class="rounded-lg border border-red-500/70 bg-red-950/30 p-2"><b class="text-red-300">ทิศแตก/ชง (${MODE === 'y' ? '歲破' : MODE === 'm' ? '月破' : '日破'})</b> · ${PAL_SHORT[PAL[pi(clash)]]} (<span class="cn">${ZHI[(yz + 6) % 12]}</span>)<br><span class="text-slate-300">ไม่ควรเริ่มก่อสร้าง ซ่อมแซม</span></div>
         <div class="rounded-lg border border-yellow-500/70 bg-yellow-950/30 p-2"><b class="text-yellow-300">ดาว 5 (五黃)</b> · ${PAL_SHORT[PAL[stars.indexOf(5)]] || 'กลางบ้าน'} · <b class="text-yellow-300">ดาว 2 (二黑)</b> · ${PAL_SHORT[PAL[stars.indexOf(2)]] || 'กลางบ้าน'}<br><span class="text-slate-300">ใช้โลหะหนัก น้ำเต้าทองเหลือง ห้ามสีแดง</span></div>
       </div>`;
     const rows = PAL.map((p, i) => ({ p, i, n: stars[i], s: STAR[stars[i]] }));
@@ -138,13 +148,13 @@ function render() {
     document.getElementById('list').innerHTML = rows.map(r => {
       const d = r.i * 45, tags = [];
       if (Math.abs(((d - ssMid + 540) % 360) - 180) < 45) tags.push('<span class="px-1.5 rounded bg-orange-600 text-white">ทิศอสูร</span>');
-      if (Math.abs(((d - taisui + 540) % 360) - 180) < 22.5) tags.push('<span class="px-1.5 rounded bg-purple-600 text-white">ไท้ส่วย</span>');
+      if (MODE === 'y' && Math.abs(((d - taisui + 540) % 360) - 180) < 22.5) tags.push('<span class="px-1.5 rounded bg-purple-600 text-white">ไท้ส่วย</span>');
       if (Math.abs(((d - clash + 540) % 360) - 180) < 22.5) tags.push('<span class="px-1.5 rounded bg-red-600 text-white">ชง</span>');
       return `<div class="grid grid-cols-[56px_minmax(0,1fr)] gap-2 p-2 rounded-xl border ${r.s.good ? 'border-emerald-800' : 'border-red-900'} bg-slate-950/60">
         <div class="rounded-lg text-center py-1" style="background:${r.s.col}"><div class="text-[24px] font-black leading-none text-white">${r.n}</div><div class="text-[10px] text-white">${r.s.el}</div></div>
         <div class="min-w-0"><div class="flex flex-wrap items-center gap-1.5 text-[13px]"><b>${PAL_TH[r.p]}</b><span class="text-[11px] px-2 rounded-full ${r.s.good ? 'bg-emerald-800 text-emerald-100' : 'bg-red-800 text-red-100'}">${r.s.good ? 'ดี' : 'ระวัง'}</span>${tags.join('')}</div>
         <div class="text-[12px] text-slate-300">${r.s.t}${r.n === PERIOD ? ` (ดาวรุ่งยุค ${PERIOD})` : ''}</div>
-        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-sky-200"><span class="text-slate-400">ทิศ${PAL_ZHI[r.p].map(z => ZHI_TH[z]).join('-')}:</span>${REMEDY[r.n].items.map(it => `<span class="inline-flex items-center gap-1 bg-slate-800 rounded-full pl-1 pr-2 py-0.5">${iconHtml(it, 20)} ${it.l}</span>`).join('')}<span class="text-sky-300">${REMEDY[r.n].p}</span>${(Math.abs(((r.i * 45 - ssMid + 540) % 360) - 180) < 45) ? '<span class="text-red-300">· ไม่เคลื่อนไหว เพราะทับทิศร้ายประจำปี</span>' : (REMEDY[r.n].note ? `<span class="text-red-300">· ${REMEDY[r.n].note}</span>` : '')}</div></div></div>`;
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-sky-200"><span class="text-slate-400">ทิศ${PAL_ZHI[r.p].map(z => ZHI_TH[z]).join('-')}:</span>${REMEDY[r.n].items.map(it => `<span class="inline-flex items-center gap-1 bg-slate-800 rounded-full pl-1 pr-2 py-0.5">${iconHtml(it, 20)} ${it.l}</span>`).join('')}<span class="text-sky-300">${REMEDY[r.n].p}</span>${(Math.abs(((r.i * 45 - ssMid + 540) % 360) - 180) < 45) ? '<span class="text-red-300">· ไม่เคลื่อนไหว เพราะทับทิศอสูร</span>' : (REMEDY[r.n].note ? `<span class="text-red-300">· ${REMEDY[r.n].note}</span>` : '')}</div></div></div>`;
     }).join('');
 
 }
@@ -162,9 +172,23 @@ function applyRot() {
     $id('hint').hidden = !(TOP === 'C');
     render();
 }
-$id('prevY').addEventListener('click', () => { YEAR--; render(); });
-$id('nextY').addEventListener('click', () => { YEAR++; render(); });
-$id('nowY').addEventListener('click', () => { YEAR = NOW_YEAR; render(); });
+// ◀ ▶ เลื่อนทีละ ปี / เดือน / วัน ตามโหมด
+function step(k) {
+    if (MODE === 'y') YEAR += k;
+    else if (MODE === 'm') { DATE = new Date(DATE.getFullYear(), DATE.getMonth() + k, 15); }
+    else { DATE = new Date(DATE.getFullYear(), DATE.getMonth(), DATE.getDate() + k, 12); }
+    render();
+}
+$id('prevY').addEventListener('click', () => step(-1));
+$id('nextY').addEventListener('click', () => step(1));
+$id('nowY').addEventListener('click', () => { YEAR = NOW_YEAR; DATE = new Date(); render(); });
+$id('modeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    MODE = b.dataset.v;
+    document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    if (MODE !== 'y' && YEAR !== NOW_YEAR && DATE.getFullYear() !== YEAR) DATE = new Date(YEAR, DATE.getMonth(), 15);
+    render();
+});
 $id('topSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setTop(b.dataset.v); });
 
 // ---------- หมุนตามเข็มทิศ ----------

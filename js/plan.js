@@ -141,6 +141,10 @@ function analyzeCell(g) {
         n.push(`หันหัวเตียงไป${DIR_SHORT[row[1]]}หรือ${DIR_SHORT[row[2]]}`);
     }
     if (type === 'door' && tf === 'sha') n.push('ประตูโดนดาว 5 ใช้โลหะ/กระดิ่งลมช่วยสลาย');
+    if (pal !== 'C') {
+        const zz = houseZeroDirs(C).find(z => z.pal === pal && (z.k === 'zheng' || z.k === 'ling'));
+        if (zz) n.push(`ทิศ${zz.cn} (${zz.th}): ${zz.out}`);
+    }
     if (pal === 'C') {
         if (st.f === C || st.m === C) n.push(`ดาว ${C} ของยุคปัจจุบันถูกล็อคกลางบ้าน (入囚) เปิดโล่งจากกลางบ้านไปถึงประตู/หน้าต่าง`);
         n.push('กลางบ้าน รักษาให้สะอาด โปร่ง ไม่วางของหนัก');
@@ -353,6 +357,14 @@ function drawPie(R, fs) {
 // ---------- รายการห้อง ----------
 const VERDICT_CHIP = { good: 'bg-emerald-800 text-emerald-100', warn: 'bg-amber-800 text-amber-100', bad: 'bg-red-800 text-red-100', miss: 'bg-zinc-600 text-zinc-100', none: 'bg-slate-700 text-slate-200' };
 const VERDICT_ORDER = { good: 0, warn: 1, bad: 2, miss: 3, none: 4 };
+// 零正神: ทิศที่ภายนอกควรสูง/ควรมีน้ำ และภายในควรโปร่ง/ทึบ (เทียบยุคปัจจุบัน)
+function zeroBox() {
+    const zs = houseZeroDirs(calcNow.C); if (!zs.length) return '';
+    const PS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return `<details class="text-[12px] rounded-lg px-3 py-2 border border-sky-700/70 bg-sky-950/30"><summary class="cursor-pointer text-sky-200"><b class="cn-char">零正神</b> <b>ทิศภายนอกควรสูง / ควรมีน้ำ</b> (ยุค ${calcNow.C})</summary>
+        <div class="mt-1.5 space-y-1">${zs.map(z => `<div><b class="${z.k.includes('ling') ? 'text-sky-300' : 'text-amber-300'}">${PS[z.pal]} ${DIR_SHORT[PS[z.pal]]}</b> · <span class="cn-char">${z.cn}</span> ${z.th} <span class="text-slate-400">(${z.when})</span><br><span class="text-slate-300">นอกบ้าน: ${z.out} · ในบ้าน: ${z.ins}</span></div>`).join('')}
+        <div class="text-[10px] text-slate-500">ถ้าทิศของยุคนี้กับยุคหน้าขัดกัน ให้ยึดยุคปัจจุบันก่อน</div></div></details>`;
+}
 function renderRooms(cells) {
     $('floorLabel').textContent = '· ' + floor().name;
     const pt = $('patterns');
@@ -360,7 +372,8 @@ function renderRooms(cells) {
     else {
         const ch = calcNow.chart, warn = houseWarning(house.facing);
         pt.innerHTML = ch.pat.map(x => `<div class="text-[12px] rounded-lg px-3 py-2 border ${x.k === 'good' ? 'border-emerald-600 text-emerald-200' : x.k === 'bad' ? 'border-red-600 text-red-200' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> <b>${x.th}</b> · ${x.t}</div>`).join('')
-            + (warn ? `<div class="text-[11px] text-amber-300">${warn}</div>` : '');
+            + (warn ? `<div class="text-[11px] text-amber-300">${warn}</div>` : '')
+            + zeroBox();
     }
     const sorted = cells.slice().sort((a, b) => (VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict]) || (b.score - a.score));
     const box = $('rooms');
