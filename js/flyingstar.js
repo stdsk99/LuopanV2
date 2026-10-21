@@ -94,24 +94,27 @@ function houseAdvice(deg) {
     const m = ch.mt.g[p], f = ch.ft.g[p], b = ch.base.g[p], a = ch.an.g[p], P = ch.C;
     const notes = []; let level = 'normal';
     const good = (n) => ['wang', 'sheng'].includes(houseTimeliness(n, P).k);
+    // ข้อความสั้น กระชับ ให้พอดีกล่องเหนือกล่ององศาบนมือถือ
     if (m === P && f === P) { notes.push('ดาวรุ่งคู่ ดีมาก'); level = 'good'; }
-    else if (f === P) { notes.push('ดาวน้ำรุ่ง ดีเรื่องเงิน เหมาะประตู/ทางเดิน/น้ำ'); level = 'good'; }
-    else if (m === P) { notes.push('ดาวภูเขารุ่ง ดีเรื่องคน/สุขภาพ เหมาะห้องนอน'); level = 'good'; }
-    else if (good(m) || good(f)) { notes.push('มีดาวกำลังมา'); level = 'good'; }
-    if ([m, f].includes(5)) { notes.push('มีดาว 5 ระวังอุบัติเหตุ'); level = 'bad'; }
-    if ([m, f].includes(2) && !good(2)) { notes.push('ดาว 2 ระวังสุขภาพ'); level = level === 'good' ? 'normal' : 'bad'; }
-    if (a === 5) { notes.push('ปีนี้ 五黃 จรเข้า ห้ามเคาะเจาะทุบ'); level = 'fatal'; }
-    else if (a === 2) { notes.push('ปีนี้ 二黑 จรเข้า ระวังเจ็บป่วย'); if (level !== 'fatal') level = 'bad'; }
-    if (!notes.length) notes.push(HOUSE_STAR_MEAN[f] + ' / ' + HOUSE_STAR_MEAN[m]);
-    // คู่ดาวภูเขา+น้ำ และกลุ่มดาวพิเศษ (js/fs-pairs.js)
-    const pr = fsPair(m, f), lively = good(m) || good(f), five = m === 5 || f === 5;
-    const pg = lively && !five && !/ไม่มีด้านดี/.test(pr.g);
-    notes.push(`คู่ ${pr.key} ${pr.t}: ${pg ? pr.g : pr.b} · แก้: ${pr.r}`);
+    else if (f === P) { notes.push('ดาวน้ำรุ่ง เหมาะประตู/ทางเดิน'); level = 'good'; }
+    else if (m === P) { notes.push('ดาวภูเขารุ่ง เหมาะห้องนอน'); level = 'good'; }
+    else if (good(m) || good(f)) level = 'good';
+    const five = m === 5 || f === 5;
+    if (five) level = 'bad';
+    if ([m, f].includes(2) && !good(2) && level !== 'bad') level = level === 'good' ? 'normal' : 'bad';
+    if (a === 5) { notes.push('ปีนี้ 五黃 จร ห้ามเคาะเจาะทุบ'); level = 'fatal'; }
+    else if (a === 2) { notes.push('ปีนี้ 二黑 จร ระวังป่วย'); if (level !== 'fatal') level = 'bad'; }
+    // คู่ดาวภูเขา+น้ำ (js/fs-pairs.js) ตัดชื่อจีนในวงเล็บออก
+    const pr = fsPair(m, f), pg = (good(m) || good(f)) && !five && !/ไม่มีด้านดี/.test(pr.g);
+    notes.push(`${pr.t.replace(/\s*\(.*\)/, '')}: ${pg ? pr.g : pr.b}`);
+    notes.push(`แก้: ${pr.r}`);
+    // กลุ่มดาวพิเศษที่ร้ายที่สุด 1 ชุด
     const tb = state.calc.timeBazi;
     const mo = tb ? houseFly(houseMonthStar(tb.year, tb.month), true).g[p] : 0;
-    fsGroups({ b, f, m, a, mo }).sort((x, y) => (x.k === 'bad' ? 0 : 1) - (y.k === 'bad' ? 0 : 1)).slice(0, 1).forEach(gp => { notes.push(`${gp.k === 'good' ? '✦' : '⚠'} ${gp.label}: ${gp.t}`); if (gp.k === 'bad' && level === 'good') level = 'normal'; });
+    const gp = fsGroups({ b, f, m, a, mo }).sort((x, y) => (x.k === 'bad' ? 0 : 1) - (y.k === 'bad' ? 0 : 1))[0];
+    if (gp) { notes.push(`${gp.k === 'good' ? '✦' : '⚠'} ${gp.t}`); if (gp.k === 'bad' && level === 'good') level = 'normal'; }
     return {
-        title: `${HOUSE_PALACE_TH[p]} · ภูเขา ${m} น้ำ ${f} (ยุค ${b}) · จรปี ${a}`,
+        title: `${HOUSE_PALACE_SHORT[p]} · ภูเขา ${m} น้ำ ${f} · จรปี ${a}`,
         remedy: notes.join(' · '),
         level
     };

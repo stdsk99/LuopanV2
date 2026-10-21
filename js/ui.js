@@ -144,22 +144,23 @@ function updateStatusBadge() {
         modeName = `<span class="text-emerald-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: เฉพาะทิศมงคลบุคคล (8 Mansions)</span>`;
         legendHtml = `<div class="flex justify-center gap-4 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1.5 text-emerald-400"><span class="w-3 h-3 md:w-4 md:h-4 border-2 border-emerald-500 rounded-sm"></span>ทิศมงคล</span><span class="flex items-center gap-1.5 text-red-400"><span class="w-3 h-3 md:w-4 md:h-4 border-2 border-red-500 rounded-sm"></span>ทิศร้าย</span></div>`;
     } else if (state.viewMode === 'TIME') {
-        modeName = `<span class="text-yellow-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: แสดงทิศร้ายกาลเวลา</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">${activeText}</span>`;
+        modeName = `<span class="text-yellow-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: แสดงทิศร้ายกาลเวลา</span><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-0.5 block">${activeText}</span>`;
         legendHtml = `<div class="flex justify-center gap-4 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1.5 text-red-400"><span class="w-3 h-3 md:w-4 md:h-4 bg-red-600 rounded-sm"></span>ทิศแตก(ชง)</span><span class="flex items-center gap-1.5 text-orange-400"><span class="w-4 h-1.5 md:w-6 md:h-2 bg-orange-500 rounded-full"></span>ทิศอสูร</span></div>`;
     } else if (state.viewMode === 'STARS') {
-        modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: ดาวเหินประจำปี</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">(ปี${state.calc.timeBazi.solarYear} นับจาก 立春)</span>`;
+        modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: ดาวเหินประจำปี</span><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-0.5 block">(ปี${state.calc.timeBazi.solarYear} นับจาก 立春)</span>`;
         legendHtml = `<div class="flex justify-center gap-3 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1 text-emerald-400">⭐มงคล</span><span class="flex items-center gap-1 text-red-400">⭐ร้าย</span><span class="flex items-center gap-1 text-yellow-400">⭐วิบัติ</span></div>`;
     } else if (state.viewMode === 'HOUSE') {
         // โหมดดาวเหินของบ้าน (js/flyingstar.js)
         const hf = house ? houseMountainOf(house.facing) : null;
         const sub = house ? `หัน <span class="cn-char">${HOUSE_M24[hf.m]}</span> ${house.facing.toFixed(1)}° · นั่ง <span class="cn-char">${HOUSE_M24[houseMountainOf(house.facing + 180).m]}</span> · ดาวจรปี ${state.calc.timeBazi.solarYear}` : 'ยังไม่ได้บันทึกทิศบ้าน';
-        modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">⭐ โหมด: ดาวเหินของบ้าน · ยุค ${housePeriod()}</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">${sub}</span>`;
+        modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">⭐ โหมด: ดาวเหินของบ้าน · ยุค ${housePeriod()}</span><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-0.5 block">${sub}</span>`;
+        // ปุ่มวัดทิศอยู่แถวเดียวกับคำอธิบายสี เพื่อลดความสูงของกล่อง
         const btn = (houseMeasuring && state.isCompassActive)
-            ? `<button onclick="houseSaveFacing(displayDegree)" class="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full px-4 py-1.5 text-[clamp(12px,3vmin,18px)]">📍 บันทึกทิศนี้เป็นหน้าบ้าน</button>`
-            : `<button onclick="houseStartMeasure()" class="mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-4 py-1.5 text-[clamp(12px,3vmin,18px)]">📍 ${house ? 'วัดทิศบ้านใหม่' : 'วัดทิศบ้าน'}</button>`;
-        legendHtml = `<div class="flex justify-center gap-3 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(11px,2.8vmin,18px)]"><span class="text-amber-400">ภูเขา</span><span class="text-blue-400">น้ำ</span><span class="text-slate-400">ยุค</span><span class="bg-amber-400 text-slate-900 rounded px-1">จรปี</span><span class="text-green-400">□ ดาวรุ่ง</span></div>${btn}`;
+            ? `<button onclick="houseSaveFacing(displayDegree)" class="bg-emerald-600 hover:bg-emerald-500 text-white rounded-full px-3 py-1 text-[clamp(11px,2.8vmin,16px)]">📍 บันทึกทิศนี้เป็นหน้าบ้าน</button>`
+            : `<button onclick="houseStartMeasure()" class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-3 py-1 text-[clamp(11px,2.8vmin,16px)]">📍 ${house ? 'วัดทิศใหม่' : 'วัดทิศบ้าน'}</button>`;
+        legendHtml = `<div class="flex flex-wrap justify-center items-center gap-x-2.5 gap-y-1.5 mt-1.5 pt-1.5 border-t border-slate-700/80 text-[clamp(11px,2.8vmin,18px)]"><span class="text-amber-400">ภูเขา</span><span class="text-blue-400">น้ำ</span><span class="text-slate-400">ยุค</span><span class="bg-amber-400 text-slate-900 rounded px-1">จรปี</span><span class="text-green-400">□ ดาวรุ่ง</span>${btn}</div>`;
     }
-    els.statusBadge.innerHTML = `<div class="flex flex-col text-yellow-500 mb-1">${modeName}</div>${legendHtml}`;
+    els.statusBadge.innerHTML = `<div class="flex flex-col text-yellow-500">${modeName}</div>${legendHtml}`;
 }
 
 function setActiveMenuButton() {
