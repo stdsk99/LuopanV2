@@ -2,7 +2,7 @@
 // ไม่มีโค้ดที่ผูกกับหน้าจอ: ข้อมูล สูตร และทิศบ้านที่บันทึกไว้ (localStorage: luopan_house)
 // ดาวเหินของบ้าน (玄空飛星 下卦): ผังดาวภูเขา/ดาวน้ำตามทิศนั่ง-หันและยุคที่สร้าง
 // ตรวจกับตาราง StarTab ของแอปต้นแบบ (APK Thai_F12_LuoPan) แล้ว ตรงกันครบ 9 ยุค × 24 ภูเขา (คอลัมน์มาตรฐาน)
-// ยังไม่รวมผังทดแทน (替卦) สำหรับทิศที่ตกช่วง 兼 แอปจะเตือนแทน
+// ผังทดแทน (替卦) เป็นตัวเลือก (luopan_tigua) ใช้เมื่อทิศอยู่ริมภูเขา ≤ 3° ตามแอป F04 · ตรงตาราง StarOP 212/216 อีก 4 ผังใช้ค่าตาม APK
 
 // ---------- ข้อมูล ----------
 // 24 ภูเขา เริ่มที่ 壬 (337.5°–352.5°) เรียงตามเข็มนาฬิกา
@@ -104,15 +104,34 @@ function houseSpecials(ch, C) {
     if (ch.ft.c === ch.base.c && ch.ft.fw) out.push({ k: 'bad', c: '伏吟', th: 'ผังดาวหกงิ้ม (น้ำ-ยุค)', t: 'ดาวน้ำทับดาวยุคและเดินหน้าทั้งผัง' });
     return out;
 }
-// period = ยุคของผังบ้าน · C = ยุคปัจจุบัน (ไม่ส่งมา = ใช้ยุคของผัง)
-function houseChart(facing, period, annualCenter, C) {
+// ---------- ผังทดแทน (替卦) สูตรสาย อ.เสิ้น (沈氏) ----------
+// เลขดาวกลางของดาวภูเขา/ดาวน้ำ เปลี่ยนเป็น "ดาวแทน" ของภูเขาตำแหน่งเดียวกัน (地/天/人元) ในวังบ้านเกิดของเลขนั้น
+// ทิศบินคงเดิมตามผังปกติ · เลข 5 ไม่แทน · ดาวแทนของ 24 ภูเขา (เรียงตาม HOUSE_M24):
+const HOUSE_TI_STAR = [2, 1, 1, 7, 7, 9, 1, 2, 2, 6, 6, 6, 7, 9, 9, 2, 2, 1, 9, 7, 7, 6, 6, 6];
+// 4 ผังที่ตาราง StarOP ของ APK ต่างจากสูตร (ยุค-ภูเขานั่ง): ใช้ค่าตาม APK · ลบ = บินถอยหลัง · m = ดาวภูเขา, w = ดาวน้ำ
+const HOUSE_TI_EXC = { '4-15': { m: -2 }, '5-5': { m: -9 }, '5-6': { w: -9 }, '8-17': { m: 6 } };
+const HOUSE_TI_BAND = 3;     // ห่างเส้นแบ่งภูเขาไม่เกินกี่องศาจึงใช้ผังทดแทน (เหมือน F04)
+let HOUSE_TI = false;        // ตัวเลือกของผู้ใช้ ค่าเริ่มต้นปิด (F04 เริ่มที่ผังปกติ)
+try { HOUSE_TI = localStorage.getItem('luopan_tigua') === '1'; } catch (e) {}
+function houseTiSet(on) { HOUSE_TI = !!on; try { localStorage.setItem('luopan_tigua', on ? '1' : '0'); } catch (e) {} }
+function houseTiCenter(num, pos) { return num === 5 ? 5 : HOUSE_TI_STAR[HOUSE_HOME[num] * 3 + pos]; }
+
+// period = ยุคของผังบ้าน · C = ยุคปัจจุบัน (ไม่ส่งมา = ใช้ยุคของผัง) · ti = ใช้ผังทดแทน (ไม่ส่งมา = ตามตัวเลือกของผู้ใช้)
+function houseChart(facing, period, annualCenter, C, ti) {
     const f = houseMountainOf(facing), s = houseMountainOf(facing + 180);
     const base = houseFly(period, true);
     const sNum = base.g[s.palace], fNum = base.g[f.palace];
-    const mt = houseFly(sNum, houseStarForward(sNum, s.pos, period));
-    const ft = houseFly(fNum, houseStarForward(fNum, f.pos, period));
+    const sFw = houseStarForward(sNum, s.pos, period), fFw = houseStarForward(fNum, f.pos, period);
+    let mt = houseFly(sNum, sFw), ft = houseFly(fNum, fFw), tiInfo = null;
+    if ((ti === undefined ? HOUSE_TI : ti) && f.dist <= HOUSE_TI_BAND) {
+        const ex = HOUSE_TI_EXC[period + '-' + s.m] || {};
+        const mt2 = ex.m ? houseFly(Math.abs(ex.m), ex.m > 0) : houseFly(houseTiCenter(sNum, s.pos), sFw);
+        const ft2 = ex.w ? houseFly(Math.abs(ex.w), ex.w > 0) : houseFly(houseTiCenter(fNum, f.pos), fFw);
+        tiInfo = { std: { m: sNum, w: fNum }, same: mt2.c === mt.c && mt2.fw === mt.fw && ft2.c === ft.c && ft2.fw === ft.fw };
+        mt = mt2; ft = ft2;
+    }
     const an = houseFly(annualCenter, true);
-    const ch = { f, s, base, mt, ft, an, P: period, C: C || period };
+    const ch = { f, s, base, mt, ft, an, P: period, C: C || period, ti: tiInfo };
     ch.cond = houseCond(ch);
     ch.spec = houseSpecials(ch, ch.C);
     ch.pat = (ch.cond ? [HOUSE_COND[ch.cond]] : []).concat(ch.spec);
@@ -149,8 +168,37 @@ function houseWarning(facing) {
     const ln = houseDownLine(facing);
     if (ln) return `⚠️ ทิศหน้าบ้านตก${ln.th} (${ln.cn}) ช่วง ${ln.a}°–${ln.b}°: ${ln.t} · ควรวัดซ้ำหลายจุด`;
     const f = houseMountainOf(facing);
-    if (f.dist <= 3) return '⚠️ ทิศอยู่ช่วง 兼 (ห่างเส้นแบ่งภูเขา ' + f.dist.toFixed(1) + '°) บางสำนักใช้ผังทดแทน (替卦)';
+    if (f.dist <= HOUSE_TI_BAND) return '⚠️ ทิศอยู่ช่วง 兼 (ห่างเส้นแบ่งภูเขา ' + f.dist.toFixed(1) + '°) ' + (HOUSE_TI ? 'ใช้ผังทดแทน (替卦) ตามตัวเลือกแล้ว' : 'บางสำนักใช้ผังทดแทน (替卦) เปิดได้ที่ตัวเลือกในตั้งค่าบ้าน');
     return '';
+}
+// ข้อความสั้นบอกว่าผังนี้ใช้ผังทดแทนหรือไม่ (ว่าง = ผังปกติ)
+function houseTiNote(ch) {
+    if (!ch || !ch.ti) return '';
+    return ch.ti.same ? 'ผังทดแทน (替卦): เลขดาวกลางเหมือนผังปกติ' : `ใช้ผังทดแทน (替卦) · ผังปกติคือ ภูเขา ${ch.ti.std.m} น้ำ ${ch.ti.std.w} → ผังทดแทน ภูเขา ${ch.mt.c} น้ำ ${ch.ft.c}`;
+}
+
+// ---------- 7 ดาวขโมยโชค แบบ 64 ข่วย (七星打劫 玄空大卦) ตาม CalDragon ของ APK F07 ฮวงจุ้ย 64 ข่วย ----------
+// วง 64 ข่วยลำดับฝูซี ช่องละ 5.625° เริ่ม 復 ที่ 0° (ตรงกับ FUXI_RING ใน data.js) · มุมที่ใช้คือทิศประตูหน้าบ้าน
+// ทิศน้ำ = ตำแหน่งของข่วยกลับหัว (綜卦) ของข่วยหน้าบ้าน · ทิศมังกร = ตรงข้ามทิศน้ำ
+// ข่วยที่กลับหัวแล้วเหมือนเดิม 8 ตัว (乾 坤 坎 離 頤 大過 中孚 小過) ไม่มีผังนี้
+// ตรีโกณแทนด้วยเลข 3 บิต เส้นล่างเป็นบิตสูง: 坤0 艮1 坎2 巽3 震4 離5 兌6 乾7
+const HOUSE_GUA_W = 5.625;
+function houseGuaIdx(d) { return Math.floor(houseNorm360(d - 0.001) / HOUSE_GUA_W) % 64; }
+function houseGuaTri(i) { const b = i >> 3, j = i & 7; return i < 32 ? { lo: 4 + b, up: j } : { lo: 7 - b, up: 7 - j }; }
+function houseGuaFromTri(lo, up) { return lo >= 4 ? (lo - 4) * 8 + up : (7 - lo) * 8 + (7 - up); }
+const houseTriRev = (c) => ((c & 1) << 2) | (c & 2) | (c >> 2);
+function houseRobbery64(facing) {
+    const i = houseGuaIdx(facing), t = houseGuaTri(i);
+    const z = houseGuaFromTri(houseTriRev(t.up), houseTriRev(t.lo));
+    const at = (k) => ({ k, a: k * HOUSE_GUA_W, b: (k + 1) * HOUSE_GUA_W, mid: (k + 0.5) * HOUSE_GUA_W, kw: typeof FUXI_RING !== 'undefined' ? FUXI_RING[k] : 0 });
+    if (z === i) return { door: at(i), none: true };
+    return { door: at(i), water: at(z), dragon: at((z + 32) % 64), none: false };
+}
+// ชื่อข่วยจากเลข King Wen (ใช้ gua64Info ใน data.js ถ้ามี)
+function houseGuaName(kw) {
+    if (!kw) return '';
+    const ch = String.fromCodePoint(0x4DC0 + kw - 1);
+    return typeof gua64Info !== 'undefined' && gua64Info[kw - 1] ? ch + ' ' + gua64Info[kw - 1].split('|')[0] : ch;
 }
 
 // ---------- 零正神 (ตามรายการในแอป F04: 正神 / 反正神 / 零神 / 反零神) ----------

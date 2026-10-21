@@ -17,7 +17,7 @@
 - `sun.html` (วัดทิศจากเงาแดด): `js/version-check.js` → `magdec.js` → `fs-core.js` → `sunpos.js` → `sun.js`
 - `magdec.js` = มุมเบี่ยงแม่เหล็ก WMM-2025 + ทิศอ้างอิงที่ผู้ใช้เลือก (`luopan_north`: แม่เหล็ก/ทิศเหนือจริง)
 - `fs-core.js` / `person-core.js` = สูตรล้วน (ดาวเหิน, 八宅, Kua) ใช้ร่วมกันทั้งสองหน้า ห้ามอ้างถึง `state` หรือ DOM ของหน้าเข็มทิศ
-- ข้อมูลร่วมใน localStorage: `luopan_house`, `luopan_birthDate`, `luopan_gender`; แปลนอยู่ใน `luopan_plan`
+- ข้อมูลร่วมใน localStorage: `luopan_house`, `luopan_birthDate`, `luopan_gender`; แปลนอยู่ใน `luopan_plan` · ตัวเลือกผังทดแทน `luopan_tigua`
 เป็นสคริปต์ธรรมดา (ไม่ใช่ module) ใช้ตัวแปรร่วมกัน: โค้ดที่รันทันทีต้องอ้างถึงสิ่งที่ประกาศในไฟล์ก่อนหน้าเท่านั้น
 
 ## ทุกครั้งที่แก้ไข
