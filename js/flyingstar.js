@@ -103,6 +103,13 @@ function houseAdvice(deg) {
     if (a === 5) { notes.push('ปีนี้ 五黃 จรเข้า ห้ามเคาะเจาะทุบ'); level = 'fatal'; }
     else if (a === 2) { notes.push('ปีนี้ 二黑 จรเข้า ระวังเจ็บป่วย'); if (level !== 'fatal') level = 'bad'; }
     if (!notes.length) notes.push(HOUSE_STAR_MEAN[f] + ' / ' + HOUSE_STAR_MEAN[m]);
+    // คู่ดาวภูเขา+น้ำ และกลุ่มดาวพิเศษ (js/fs-pairs.js)
+    const pr = fsPair(m, f), lively = good(m) || good(f), five = m === 5 || f === 5;
+    const pg = lively && !five && !/ไม่มีด้านดี/.test(pr.g);
+    notes.push(`คู่ ${pr.key} ${pr.t}: ${pg ? pr.g : pr.b} · แก้: ${pr.r}`);
+    const tb = state.calc.timeBazi;
+    const mo = tb ? houseFly(houseMonthStar(tb.year, tb.month), true).g[p] : 0;
+    fsGroups({ b, f, m, a, mo }).sort((x, y) => (x.k === 'bad' ? 0 : 1) - (y.k === 'bad' ? 0 : 1)).slice(0, 1).forEach(gp => { notes.push(`${gp.k === 'good' ? '✦' : '⚠'} ${gp.label}: ${gp.t}`); if (gp.k === 'bad' && level === 'good') level = 'normal'; });
     return {
         title: `${HOUSE_PALACE_TH[p]} · ภูเขา ${m} น้ำ ${f} (ยุค ${b}) · จรปี ${a}`,
         remedy: notes.join(' · '),

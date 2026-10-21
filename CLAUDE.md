@@ -10,7 +10,7 @@
 - **อ่าน `docs/REFERENCE.md` ก่อนเริ่มงาน**: สรุปสูตรและองค์ความรู้จาก APK, สิ่งที่แอปกำหนดเอง และงานค้าง (อัปเดตไฟล์นี้เมื่อพบความรู้ใหม่)
 
 ## โครงสร้าง (โหลดตามลำดับ)
-- `index.html` (เข็มทิศ): `js/version-check.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `compass.js` → `fs-core.js` → `flyingstar.js` → `person-core.js` → `person.js` → `main.js`
+- `index.html` (เข็มทิศ): `js/version-check.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `compass.js` → `fs-core.js` → `fs-pairs.js` → `flyingstar.js` → `person-core.js` → `person.js` → `main.js`
 - `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `plan.js`
 - `fs-core.js` / `person-core.js` = สูตรล้วน (ดาวเหิน, 八宅, Kua) ใช้ร่วมกันทั้งสองหน้า ห้ามอ้างถึง `state` หรือ DOM ของหน้าเข็มทิศ
 - ข้อมูลร่วมใน localStorage: `luopan_house`, `luopan_birthDate`, `luopan_gender`; แปลนอยู่ใน `luopan_plan`

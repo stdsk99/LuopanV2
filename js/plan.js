@@ -36,7 +36,9 @@ function computeAll() {
     // ดาวรุ่ง/ถอย เทียบกับยุคปัจจุบันตามวันที่ (เหมือน APK F04) ส่วนสภาพผังเทียบกับยุคของผังบ้าน
     const C = houseCurrentPeriod(y);
     const chart = house ? houseChart(house.facing, housePeriod(), annual, C) : null;
-    calcNow = { chart, kua, annualYear: y, P: housePeriod(), C };
+    // ดาวจรเดือน (ใช้ตรวจกลุ่มดาวพิเศษ)
+    const month = houseFly(houseMonthStar(now.year, now.month), true);
+    calcNow = { chart, kua, annualYear: y, P: housePeriod(), C, month };
 }
 
 // ตำแหน่งช่องในตาราง (0..8 เรียงซ้ายไปขวา บนลงล่าง) วนตามเข็มนาฬิกาจากช่องบนกลาง
@@ -49,8 +51,9 @@ function palaceOfCell(g) {
 }
 function starsOf(pal) {
     const ch = calcNow.chart;
-    if (pal === 'C') return { m: ch.mt.c, f: ch.ft.c, b: ch.base.c, a: ch.an.c };
-    return { m: ch.mt.g[pal], f: ch.ft.g[pal], b: ch.base.g[pal], a: ch.an.g[pal] };
+    const mo = calcNow.month;
+    if (pal === 'C') return { m: ch.mt.c, f: ch.ft.c, b: ch.base.c, a: ch.an.c, mo: mo.c };
+    return { m: ch.mt.g[pal], f: ch.ft.g[pal], b: ch.base.g[pal], a: ch.an.g[pal], mo: mo.g[pal] };
 }
 
 // ประเภทห้องจากชื่อ (ใช้ปรับน้ำหนักดาว)
@@ -107,6 +110,12 @@ function analyzeCell(g) {
     res.trigger = [st.m, st.f].map(x => fsPair(st.a, x)).filter(q => FS_TRIGGER_BAD.includes(q.key))
         .filter((q, i, arr) => arr.findIndex(z => z.key === q.key) === i)
         .map(q => `ปีนี้ดาวจร ${st.a} มาเจอเป็นคู่ ${q.key} (${q.t}): ${q.b}`);
+    // คู่ดาวกับดาวยุค (APK F04 แสดง ภูเขา+ยุค และ ยุค+น้ำ ด้วย) อ่านด้านตามจังหวะของดาวภูเขา/น้ำตัวนั้น
+    const side = (x, k) => { const q = fsPair(x, st.b), ok = ['wang', 'sheng'].includes(k) && x !== 5 && st.b !== 5 && !/ไม่มีด้านดี/.test(q.g); return `${q.key} ${q.t}: ${ok ? q.g : q.b}`; };
+    res.basePairs = [`ภูเขา+ยุค ${side(st.m, tm)}`, `ยุค+น้ำ ${side(st.f, tf)}`];
+    // กลุ่มดาวพิเศษ (รวมดาวจรปีและเดือน)
+    const ord = { bad: 0, mix: 1, good: 2 };
+    res.groups = fsGroups(st).sort((x, y) => ord[x.k] - ord[y.k]);
     // เหตุผลที่อ่านเข้าใจง่าย เรียงจากสำคัญ
     const n = res.notes;
     if (st.m === C && st.f === C) n.push(`ดาวรุ่งคู่ ${C}-${C}`);
@@ -363,6 +372,8 @@ function renderRooms(cells) {
                 ${c.pair ? `<div class="text-[12px] leading-relaxed mt-1 ${c.pair.good ? 'text-emerald-200' : 'text-amber-200'}"><b>คู่ดาว ${c.st.m}-${c.st.f} ${c.pair.t}:</b> ${c.pair.text}</div>
                 <div class="text-[11px] text-sky-300 leading-relaxed">เสริมดีลดร้าย: ${c.pair.r}</div>` : ''}
                 ${c.trigger && c.trigger.length ? `<div class="text-[11px] text-red-300 leading-relaxed">⚠ ${c.trigger.join(' · ')}</div>` : ''}
+                ${c.groups && c.groups.length ? c.groups.slice(0, 2).map(gp => `<div class="text-[11px] leading-relaxed ${gp.k === 'good' ? 'text-emerald-300' : gp.k === 'bad' ? 'text-red-300' : 'text-amber-200'}">✦ กลุ่มดาว ${gp.label}: ${gp.t}</div>`).join('') : ''}
+                ${c.basePairs ? `<details class="mt-0.5"><summary class="text-[11px] text-slate-400 cursor-pointer">คู่ดาวกับดาวยุค${c.groups.length > 2 ? ` · กลุ่มดาวอีก ${c.groups.length - 2} ชุด` : ''}</summary><div class="text-[11px] text-slate-400 leading-relaxed">${c.basePairs.concat(c.groups.slice(2).map(gp => `✦ ${gp.label}: ${gp.t}`)).join('<br>')}</div></details>` : ''}
             </div></div>`;
     }).join('');
     box.querySelectorAll('.room-name').forEach(inp => {
