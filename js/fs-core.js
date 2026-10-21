@@ -24,7 +24,7 @@ const wrap9 = (n) => ((n - 1) % 9 + 9) % 9 + 1;
 function houseFly(center, forward) {
     const g = new Array(8);
     for (let k = 1; k < 9; k++) g[HOUSE_FLY_PATH[k]] = wrap9(forward ? center + k : center - k);
-    return { c: center, g };
+    return { c: center, g, fw: forward };
 }
 // ภูเขาในวังทิศหลัก (เหนือ ตะวันออก ใต้ ตะวันตก) ตำแหน่งแรกเป็นหยาง ที่เหลือหยิน; วังทิศเฉียงกลับกัน
 const houseMountainYang = (palace, pos) => (palace % 2 === 0) ? pos === 0 : pos !== 0;
@@ -50,19 +50,69 @@ function houseTimeliness(n, P) {
     if (n === wrap9(P - 1)) return { k: 'tui', th: 'ถอย' };
     return { k: 'shuai', th: 'อ่อน' };
 }
-function houseChart(facing, period, annualCenter) {
+// ยุคปัจจุบันตามวันที่ (ปีฮวงจุ้ยเปลี่ยนที่ 立春) ใช้ตัดสินดาวรุ่ง/ถอย และดาวถูกล็อค (เหมือน APK F04)
+function houseCurrentPeriod(solarYear) { return housePeriodOf(solarYear); }
+
+// สภาพของทิศบ้าน: ลำดับตรวจและชื่อตาม ChkCond / TxtStarsCond ของ APK (บารมี = ดาวภูเขา, ลาภ = ดาวน้ำ)
+const HOUSE_COND = [
+    null,
+    { k: 'good', c: '旺山旺向', th: 'ทิศมีบารมีและลาภ', t: 'ดาวภูเขารุ่งอยู่หลังบ้าน ดาวน้ำรุ่งอยู่หน้าบ้าน ผังดีทั้งคนและเงิน' },
+    { k: 'good', c: '旺向', th: 'ทิศมีลาภ', t: 'ดาวน้ำรุ่งอยู่หน้าบ้าน ดีเรื่องเงิน ส่วนดาวภูเขารุ่งไม่ได้อยู่หลังบ้าน' },
+    { k: 'mid', c: '雙星到坐', th: 'ทิศลาภหนุนบารมี', t: 'ดาวรุ่งทั้งสองอยู่หลังบ้าน หลังบ้านควรมีทั้งที่สูงและน้ำ/ที่โล่ง' },
+    { k: 'good', c: '旺山', th: 'ทิศมีบารมี', t: 'ดาวภูเขารุ่งอยู่หลังบ้าน ดีเรื่องคนและสุขภาพ ส่วนดาวน้ำรุ่งไม่ได้อยู่หน้าบ้าน' },
+    { k: 'mid', c: '雙星到向', th: 'ทิศบารมีหนุนลาภ', t: 'ดาวรุ่งทั้งสองอยู่หน้าบ้าน หน้าบ้านควรมีทั้งที่โล่ง/น้ำ และที่สูงไกลออกไป' },
+    { k: 'bad', c: '上山下水', th: 'ทิศล้มเหลว', t: 'ดาวภูเขารุ่งไปอยู่หน้าบ้าน ดาวน้ำรุ่งไปอยู่หลังบ้าน ต้องแก้ด้วยการจัดวาง' },
+    { k: 'bad', c: '山星入中', th: 'ทิศบารมีเข้ากลาง', t: 'ดาวภูเขาของยุคอยู่กลางบ้าน' },
+    { k: 'bad', c: '向星入中', th: 'ทิศลาภเข้ากลาง', t: 'ดาวน้ำของยุคอยู่กลางบ้าน' },
+    { k: 'bad', c: '山向入中', th: 'ทิศบารมีและลาภเข้ากลาง', t: 'ดาวภูเขาและดาวน้ำของยุคอยู่กลางบ้าน' }
+];
+function houseCond(ch) {
+    const P = ch.P, mS = ch.mt.g[ch.s.palace], mF = ch.mt.g[ch.f.palace], wS = ch.ft.g[ch.s.palace], wF = ch.ft.g[ch.f.palace];
+    if (mS === P && wF === P) return 1;
+    if (mS === P && wS === P) return 3;
+    if (mF === P && wF === P) return 5;
+    if (wF === P) return 2;
+    if (mS === P) return 4;
+    if (mF === P && wS === P) return 6;
+    if (ch.mt.c === P && ch.ft.c === P) return 9;
+    if (ch.mt.c === P) return 7;
+    if (ch.ft.c === P) return 8;
+    return 0;
+}
+// ผังพิเศษทั้งผัง (ตามรายการ TxtR04SpecType ของ APK F04) C = ยุคปัจจุบัน
+function houseSpecials(ch, C) {
+    const cells = [{ m: ch.mt.c, f: ch.ft.c, b: ch.base.c }].concat(ch.mt.g.map((m, i) => ({ m, f: ch.ft.g[i], b: ch.base.g[i] })));
+    const all = (fn) => cells.every(fn);
+    const trio = (x) => { const a = [x.b, x.f, x.m]; return a[1] === wrap9(a[0] + 3) && a[2] === wrap9(a[0] + 6) || a[1] === wrap9(a[0] + 6) && a[2] === wrap9(a[0] + 3); };
+    const serial = (x) => { const a = [x.b, x.f, x.m]; return a.some((v, i) => { const r = a.filter((_, j) => j !== i); return r.includes(wrap9(v + 1)) && r.includes(wrap9(v + 2)); }); };
+    const out = [];
+    if (all(x => x.b + x.f === 10)) out.push({ k: 'good', c: '合十 (向)', th: 'ภาคี 10 เสริมโชค', t: 'ดาวยุคกับดาวน้ำรวมกันได้ 10 ทุกช่อง ส่งเสริมเงินและความรุ่งเรือง' });
+    if (all(x => x.b + x.m === 10)) out.push({ k: 'good', c: '合十 (山)', th: 'ภาคี 10 เสริมคน', t: 'ดาวยุคกับดาวภูเขารวมกันได้ 10 ทุกช่อง ส่งเสริมคน สุขภาพ และผู้อุปถัมภ์' });
+    if (all(trio)) out.push({ k: 'good', c: '父母三般卦', th: 'ผังดาวไตรภาคี', t: 'ทุกช่องเป็นชุด 1-4-7 / 2-5-8 / 3-6-9 ดาวของยุคต้น กลาง ปลายเชื่อมกัน' });
+    if (all(serial)) out.push({ k: 'good', c: '連珠三般卦', th: 'ผังดาวเรียงตัว', t: 'ทุกช่องเป็นเลขเรียงกัน 3 ตัว พลังต่อเนื่องกันทั้งผัง' });
+    if (ch.mt.c === 5) out.push({ k: 'bad', c: '五黃入中 (山)', th: 'ผังดาว 5 ภูเขาเข้ากลาง', t: 'ดาว 5 ภูเขาอยู่กลางบ้าน เมื่อพลังของยุคเข้าบ้านไม่ได้จะเกิดเรื่องร้ายกับคนในบ้าน' });
+    if (ch.ft.c === 5) out.push({ k: 'bad', c: '五黃入中 (向)', th: 'ผังดาว 5 ลาภวิบัติเข้ากลาง', t: 'ดาว 5 น้ำอยู่กลางบ้าน เมื่อพลังของยุคเข้าบ้านไม่ได้จะเสียหายเรื่องเงิน' });
+    if (ch.mt.c === C && ch.ft.c === C) out.push({ k: 'bad', c: '入囚', th: 'ดาวบารมีและโชคประจำยุคถูกล็อค', t: `ดาวภูเขาและดาวน้ำเลข ${C} (ยุคปัจจุบัน) ติดอยู่กลางบ้าน แก้โดยเปิดโล่งจากกลางบ้านไปถึงประตู/หน้าต่าง` });
+    else if (ch.ft.c === C) out.push({ k: 'bad', c: '入囚 (向)', th: 'ผังดาวโชคประจำยุคถูกล็อค', t: `ดาวน้ำเลข ${C} (ยุคปัจจุบัน) ติดอยู่กลางบ้าน กระทบเงินและธุรกิจ แก้โดยเปิดโล่งจากกลางบ้านไปถึงประตู/หน้าต่าง` });
+    else if (ch.mt.c === C) out.push({ k: 'bad', c: '入囚 (山)', th: 'ผังดาวบารมีประจำยุคถูกล็อค', t: `ดาวภูเขาเลข ${C} (ยุคปัจจุบัน) ติดอยู่กลางบ้าน กระทบสุขภาพและคนในบ้าน แก้โดยเปิดโล่งจากกลางบ้าน` });
+    if (ch.mt.c === ch.ft.c && ch.mt.fw && ch.ft.fw) out.push({ k: 'bad', c: '伏吟', th: 'ผังดาวหกงิ้ม (ภูเขา-น้ำ)', t: 'ดาวภูเขาและดาวน้ำทับกันและเดินหน้าทั้งผัง' });
+    if (ch.mt.c === ch.base.c && ch.mt.fw) out.push({ k: 'bad', c: '伏吟', th: 'ผังดาวหกงิ้ม (ภูเขา-ยุค)', t: 'ดาวภูเขาทับดาวยุคและเดินหน้าทั้งผัง' });
+    if (ch.ft.c === ch.base.c && ch.ft.fw) out.push({ k: 'bad', c: '伏吟', th: 'ผังดาวหกงิ้ม (น้ำ-ยุค)', t: 'ดาวน้ำทับดาวยุคและเดินหน้าทั้งผัง' });
+    return out;
+}
+// period = ยุคของผังบ้าน · C = ยุคปัจจุบัน (ไม่ส่งมา = ใช้ยุคของผัง)
+function houseChart(facing, period, annualCenter, C) {
     const f = houseMountainOf(facing), s = houseMountainOf(facing + 180);
     const base = houseFly(period, true);
     const sNum = base.g[s.palace], fNum = base.g[f.palace];
     const mt = houseFly(sNum, houseStarForward(sNum, s.pos, period));
     const ft = houseFly(fNum, houseStarForward(fNum, f.pos, period));
     const an = houseFly(annualCenter, true);
-    const P = period, pat = [];
-    if (mt.g[s.palace] === P && ft.g[f.palace] === P) pat.push({ k: 'good', c: '旺山旺向', t: 'ดาวภูเขารุ่งอยู่หลังบ้าน ดาวน้ำรุ่งอยู่หน้าบ้าน เป็นผังดี' });
-    if (mt.g[f.palace] === P && ft.g[s.palace] === P) pat.push({ k: 'bad', c: '上山下水', t: 'ดาวภูเขาไปอยู่หน้าบ้าน ดาวน้ำไปอยู่หลังบ้าน ต้องแก้ด้วยการจัดวาง' });
-    if (mt.g[f.palace] === P && ft.g[f.palace] === P) pat.push({ k: 'mid', c: '雙星到向', t: 'ดาวรุ่งทั้งสองอยู่หน้าบ้าน เหมาะมีที่โล่งและน้ำด้านหน้า' });
-    if (mt.g[s.palace] === P && ft.g[s.palace] === P) pat.push({ k: 'mid', c: '雙星到坐', t: 'ดาวรุ่งทั้งสองอยู่หลังบ้าน เหมาะมีภูเขาหรือตึกและน้ำด้านหลัง' });
-    return { f, s, base, mt, ft, an, P, pat };
+    const ch = { f, s, base, mt, ft, an, P: period, C: C || period };
+    ch.cond = houseCond(ch);
+    ch.spec = houseSpecials(ch, ch.C);
+    ch.pat = (ch.cond ? [HOUSE_COND[ch.cond]] : []).concat(ch.spec);
+    return ch;
 }
 
 // ---------- ข้อมูลบ้านที่บันทึกไว้ ----------
