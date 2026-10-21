@@ -1347,22 +1347,18 @@
                     return;
                 }
                 gotAbsoluteEvent = false; lastRelativeAlpha = null; relativeMode = false;
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    try { 
-                        const permission = await DeviceOrientationEvent.requestPermission(); 
-                        if (permission === 'granted') { 
-                            window.addEventListener('deviceorientation', handleOrientation); 
-                            startCompass(); 
-                        } else { 
-                            showToast("ต้องอนุญาตให้เข้าถึงเข็มทิศก่อนครับ"); 
-                        } 
-                    } catch (e) { showToast("ไม่สามารถเปิดเข็มทิศได้: " + e.message); }
-                } else { 
-                    window.addEventListener('deviceorientationabsolute', handleOrientation); 
-                    window.addEventListener('deviceorientation', handleOrientation);
-                    startAbsoluteSensor();
-                    startCompass(); 
+                // ขอสิทธิ์ก่อนถ้าเบราว์เซอร์มีฟังก์ชันนี้ (iPhone และ Chrome รุ่นใหม่ก็มี)
+                // แล้วฟังทุกช่องทางเสมอ ไม่ต้องเดาว่าเป็นเครื่องอะไร
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission !== 'granted') { showToast("ต้องอนุญาตให้เข้าถึงเข็มทิศก่อนครับ"); return; }
+                    } catch (e) { /* บางเบราว์เซอร์ไม่ต้องขอสิทธิ์ ให้ลองฟังต่อไป */ }
                 }
+                window.addEventListener('deviceorientationabsolute', handleOrientation);
+                window.addEventListener('deviceorientation', handleOrientation);
+                startAbsoluteSensor();
+                startCompass();
             } else { stopCompass(); }
         });
 
