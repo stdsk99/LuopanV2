@@ -80,6 +80,7 @@ function updateUI() {
     
     const p = state.calc.personBazi.bazi;
     els.personBaziPanel.innerHTML = renderPillar(p.yg, p.yz, 'ปี') + renderPillar(p.mg, p.mz, 'เดือน') + renderPillar(p.dg, p.dz, 'วัน') + renderPillar(p.hg, p.hz, 'ยาม');
+    if (typeof renderHousePanel === 'function') renderHousePanel();
 
     let sumHtml = '';
     Object.keys(state.toggles).forEach(k => {
@@ -147,6 +148,15 @@ function updateStatusBadge() {
     } else if (state.viewMode === 'STARS') {
         modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">โหมด: ดาวเหินประจำปี</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">(ปี${state.calc.timeBazi.solarYear} นับจาก 立春)</span>`;
         legendHtml = `<div class="flex justify-center gap-3 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(12px,3vmin,20px)]"><span class="flex items-center gap-1 text-emerald-400">⭐มงคล</span><span class="flex items-center gap-1 text-red-400">⭐ร้าย</span><span class="flex items-center gap-1 text-yellow-400">⭐วิบัติ</span></div>`;
+    } else if (state.viewMode === 'HOUSE') {
+        // โหมดดาวเหินของบ้าน (js/flyingstar.js)
+        const hf = house ? houseMountainOf(house.facing) : null;
+        const sub = house ? `หัน <span class="cn-char">${HOUSE_M24[hf.m]}</span> ${house.facing.toFixed(1)}° · นั่ง <span class="cn-char">${HOUSE_M24[houseMountainOf(house.facing + 180).m]}</span> · ดาวจรปี ${state.calc.timeBazi.solarYear}` : 'ยังไม่ได้บันทึกทิศบ้าน';
+        modeName = `<span class="text-blue-400 font-bold text-[clamp(14px,3.5vmin,24px)]">⭐ โหมด: ดาวเหินของบ้าน · ยุค ${housePeriod()}</span><br><span class="text-[clamp(11px,2.8vmin,18px)] text-slate-300 font-normal mt-1 block">${sub}</span>`;
+        const btn = (houseMeasuring && state.isCompassActive)
+            ? `<button onclick="houseSaveFacing(displayDegree)" class="mt-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full px-4 py-1.5 text-[clamp(12px,3vmin,18px)]">📍 บันทึกทิศนี้เป็นหน้าบ้าน</button>`
+            : `<button onclick="houseStartMeasure()" class="mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full px-4 py-1.5 text-[clamp(12px,3vmin,18px)]">📍 ${house ? 'วัดทิศบ้านใหม่' : 'วัดทิศบ้าน'}</button>`;
+        legendHtml = `<div class="flex justify-center gap-3 mt-2 pt-1.5 border-t border-slate-700/80 text-[clamp(11px,2.8vmin,18px)]"><span class="text-amber-400">ภูเขา</span><span class="text-blue-400">น้ำ</span><span class="text-slate-400">ยุค</span><span class="bg-amber-400 text-slate-900 rounded px-1">จรปี</span><span class="text-green-400">□ ดาวรุ่ง</span></div>${btn}`;
     }
     els.statusBadge.innerHTML = `<div class="flex flex-col text-yellow-500 mb-1">${modeName}</div>${legendHtml}`;
 }
@@ -179,7 +189,8 @@ els.layerBtns.forEach(btn => {
 els.quickLayerBtn.addEventListener('click', () => {
     if (state.viewMode === 'TIME') { state.viewMode = 'KUA'; state.is64GuaMode = false; } 
     else if (state.viewMode === 'KUA') { state.viewMode = 'STARS'; state.is64GuaMode = false; } 
-    else if (state.viewMode === 'STARS') { state.is64GuaMode = true; state.viewMode = '64GUA'; } 
+    else if (state.viewMode === 'STARS') { state.viewMode = 'HOUSE'; state.is64GuaMode = false; } 
+    else if (state.viewMode === 'HOUSE') { state.is64GuaMode = true; state.viewMode = '64GUA'; } 
     else { state.is64GuaMode = false; state.viewMode = 'TIME'; }
     setActiveMenuButton(); updateStatusBadge(); draw2DTexture(); updateAdviceBox(state.currentDegree);
 });
@@ -229,6 +240,7 @@ function updateAdviceBox(deg) {
     els.dirLabel.innerText = `${dirData.name} (${dirCode})`; 
     els.degreeValue.innerText = deg.toFixed(1) + '°';
     let title = "", remedy = "", hasBad = false;
+    if (state.viewMode !== 'HOUSE') els.dirAdvice.classList.replace('border-emerald-500', 'border-slate-300');
 
     if (state.is64GuaMode || state.viewMode === '64GUA') {
         const guaWidth = 5.625; const margin = 0.5; const boundaryDistance = deg % guaWidth; 
@@ -246,6 +258,15 @@ function updateAdviceBox(deg) {
             els.dirAdvice.classList.replace('border-slate-300', 'border-indigo-500'); 
             els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 text-indigo-600';
         }
+    } else if (state.viewMode === 'HOUSE') {
+        // คำแนะนำของวังที่ชี้อยู่ ตามผังดาวเหินของบ้าน (js/flyingstar.js)
+        const adv = houseAdvice(deg);
+        title = adv.title; remedy = adv.remedy;
+        ['border-slate-300', 'border-red-500', 'border-orange-500', 'border-indigo-500', 'border-emerald-500'].forEach(c => els.dirAdvice.classList.remove(c));
+        const tone = { fatal: ['border-red-500', 'text-red-600'], bad: ['border-orange-500', 'text-orange-600'], good: ['border-emerald-500', 'text-emerald-600'], normal: ['border-slate-300', 'text-slate-700'] }[adv.level];
+        els.dirAdvice.classList.add(tone[0]);
+        els.adviceTitle.className = 'font-bold text-[clamp(14px,3.5vmin,24px)] tracking-wide leading-tight mb-1 ' + tone[1];
+        hasBad = adv.level === 'fatal' || adv.level === 'bad';
     } else if (state.viewMode === 'STARS') {
         const starNum = state.calc.stars.year[dirCode];
         if (starNum) {
