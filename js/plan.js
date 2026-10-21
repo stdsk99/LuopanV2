@@ -26,15 +26,17 @@ const owner = {
 };
 
 // ---------- คำนวณ ----------
-let calcNow = null; // { chart, kua, annualYear, P }
+let calcNow = null; // { chart, kua, annualYear, P = ยุคของผังบ้าน, C = ยุคปัจจุบัน }
 function computeAll() {
     const now = getExactPillars(new Date());
     const y = now.solarYear;
     let annual = 3 - ((y - 2024) % 9); while (annual <= 0) annual += 9; while (annual > 9) annual -= 9;
     const pb = getExactPillars(new Date(owner.birth));
     const kua = personKuaOf(pb.solarYear, owner.gender);
-    const chart = house ? houseChart(house.facing, housePeriod(), annual) : null;
-    calcNow = { chart, kua, annualYear: y, P: housePeriod() };
+    // ดาวรุ่ง/ถอย เทียบกับยุคปัจจุบันตามวันที่ (เหมือน APK F04) ส่วนสภาพผังเทียบกับยุคของผังบ้าน
+    const C = houseCurrentPeriod(y);
+    const chart = house ? houseChart(house.facing, housePeriod(), annual, C) : null;
+    calcNow = { chart, kua, annualYear: y, P: housePeriod(), C };
 }
 
 // ตำแหน่งช่องในตาราง (0..8 เรียงซ้ายไปขวา บนลงล่าง) วนตามเข็มนาฬิกาจากช่องบนกลาง
@@ -65,7 +67,7 @@ function roomType(name) {
     if (/พระ|บูชา|หิ้ง/.test(n)) return 'shrine';
     return 'any';
 }
-const TL_SCORE = { wang: 3, sheng: 2, tui: 0, shuai: -1, sha: -3 };
+const TL_SCORE = { wang: 3, sheng: 2, tui: 0, shuai: -1, sha: -3, lock: -1.5 };
 const WEIGHT = { bed: [1.5, 0.5], door: [0.5, 1.5], living: [0.7, 1.3], work: [0.7, 1.3], kitchen: [0.5, 0.5], bath: [0.5, 0.5], store: [0.5, 0.5], stairs: [1, 0.5], shrine: [1.2, 0.5], any: [1, 1] };
 const DIR_SHORT = { N: 'เหนือ', NE: 'อีสาน', E: 'ตะวันออก', SE: 'อาคเนย์', S: 'ใต้', SW: 'หรดี', W: 'ตะวันตก', NW: 'พายัพ' };
 
@@ -74,7 +76,7 @@ function analyzeCell(g) {
     const fl = floor(), name = fl.rooms[g] || '', type = roomType(name);
     const res = { g, name, type, pal: null, code: null, st: null, e8: null, score: 0, verdict: 'warn', label: 'ปานกลาง', notes: [], missing: fl.missing.includes(g) };
     if (!calcNow.chart) { res.verdict = 'none'; res.label = '—'; return res; }
-    const pal = palaceOfCell(g), P = calcNow.P;
+    const pal = palaceOfCell(g), P = calcNow.P, C = calcNow.C;
     res.pal = pal; res.code = pal === 'C' ? 'C' : HOUSE_PALACES[pal];
     const st = starsOf(pal); res.st = st;
     if (pal !== 'C') res.e8 = personStarOf(res.code, calcNow.kua);
@@ -85,7 +87,9 @@ function analyzeCell(g) {
         res.notes.push('เติมด้วยไฟส่องขึ้น กระจก หรือต้นไม้ที่ผนังด้านนั้น');
         return res;
     }
-    const tm = houseTimeliness(st.m, P).k, tf = houseTimeliness(st.f, P).k;
+    let tm = houseTimeliness(st.m, C).k, tf = houseTimeliness(st.f, C).k;
+    // ดาวรุ่งที่ติดอยู่กลางบ้านถือว่าถูกล็อค (入囚) ไม่นับเป็นดาวรุ่ง
+    if (pal === 'C') { if (st.m === C) tm = 'lock'; if (st.f === C) tf = 'lock'; }
     const [wm, wf] = WEIGHT[type];
     let score = wm * TL_SCORE[tm] + wf * TL_SCORE[tf];
     const e8 = res.e8, sink = ['kitchen', 'bath', 'store'].includes(type);
@@ -96,12 +100,17 @@ function analyzeCell(g) {
     res.score = score;
     // เหตุผลที่อ่านเข้าใจง่าย เรียงจากสำคัญ
     const n = res.notes;
-    if (st.m === P && st.f === P) n.push(`ดาวรุ่งคู่ ${P}-${P}`);
+    if (st.m === C && st.f === C) n.push(`ดาวรุ่งคู่ ${C}-${C}`);
     else {
         if (tf === 'wang') n.push(`ดาวน้ำ ${st.f} รุ่ง ดีเรื่องเงิน`);
         else if (tf === 'sheng') n.push(`ดาวน้ำ ${st.f} กำลังมา`);
         if (tm === 'wang') n.push(`ดาวภูเขา ${st.m} รุ่ง ดีเรื่องคนและสุขภาพ`);
         else if (tm === 'sheng') n.push(`ดาวภูเขา ${st.m} กำลังมา`);
+    }
+    // บ้านสร้างยุคก่อน: ดาวที่เคยรุ่งตอนสร้าง ตอนนี้ถอยแล้ว
+    if (P !== C) {
+        if (st.f === P) n.push(`ดาวน้ำ ${P} เคยรุ่งในยุค ${P} ตอนนี้ยุค ${C} ถอยแล้ว`);
+        if (st.m === P) n.push(`ดาวภูเขา ${P} เคยรุ่งในยุค ${P} ตอนนี้ยุค ${C} ถอยแล้ว`);
     }
     if (st.m === 5 || st.f === 5) n.push('มีดาว 5 (ร้าย) ระวังอุบัติเหตุ');
     if (e8) {
@@ -114,7 +123,10 @@ function analyzeCell(g) {
         n.push(`หันหัวเตียงไป${DIR_SHORT[row[1]]}หรือ${DIR_SHORT[row[2]]}`);
     }
     if (type === 'door' && tf === 'sha') n.push('ประตูโดนดาว 5 ใช้โลหะ/กระดิ่งลมช่วยสลาย');
-    if (pal === 'C') n.push('กลางบ้าน รักษาให้สะอาด โปร่ง ไม่วางของหนัก');
+    if (pal === 'C') {
+        if (st.f === C || st.m === C) n.push(`ดาว ${C} ของยุคปัจจุบันถูกล็อคกลางบ้าน (入囚) เปิดโล่งจากกลางบ้านไปถึงประตู/หน้าต่าง`);
+        n.push('กลางบ้าน รักษาให้สะอาด โปร่ง ไม่วางของหนัก');
+    }
     if (st.a === 5) n.push('⚠ ปีนี้ 五黃 จรเข้า ห้ามเคาะ เจาะ ทุบ');
     else if (st.a === 2) n.push('ปีนี้ 二黑 จรเข้า ระวังเจ็บป่วย');
     if (!n.length) n.push(`ดาวภูเขา ${st.m} · ดาวน้ำ ${st.f} ปานกลาง`);
@@ -269,7 +281,7 @@ function drawCellContent(c, cx, cy, cw, chh, fs) {
     if (c.st.a === 5 && showFs) { ctx.textAlign = 'center'; ctx.fillStyle = '#b91c1c'; ctx.font = `700 ${fs * 0.7}px Prompt, sans-serif`; ctx.fillText('⚠ 五黃 จรปีนี้', cx, cy + chh / 2 - fs * 0.6, cw - 6); }
 }
 function starBox(st, cx, cy, fs) {
-    const P = calcNow.P, w = fs * 5.2, h = fs * 3.6;
+    const P = calcNow.C, w = fs * 5.2, h = fs * 3.6; // กรอบเขียว = ดาวรุ่งของยุคปัจจุบัน
     ctx.fillStyle = 'rgba(15,23,42,0.92)'; roundRect(cx - w / 2, cy - h / 2, w, h, fs * 0.6); ctx.fill();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `900 ${fs * 1.45}px Arial, sans-serif`;
@@ -319,7 +331,7 @@ function renderRooms(cells) {
     if (!calcNow.chart) { pt.innerHTML = ''; }
     else {
         const ch = calcNow.chart, warn = houseWarning(house.facing);
-        pt.innerHTML = ch.pat.map(x => `<div class="text-[12px] rounded-lg px-3 py-2 border ${x.k === 'good' ? 'border-emerald-600 text-emerald-200' : x.k === 'bad' ? 'border-red-600 text-red-200' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> ${x.t}</div>`).join('')
+        pt.innerHTML = ch.pat.map(x => `<div class="text-[12px] rounded-lg px-3 py-2 border ${x.k === 'good' ? 'border-emerald-600 text-emerald-200' : x.k === 'bad' ? 'border-red-600 text-red-200' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> <b>${x.th}</b> · ${x.t}</div>`).join('')
             + (warn ? `<div class="text-[11px] text-amber-300">${warn}</div>` : '');
     }
     const sorted = cells.slice().sort((a, b) => (VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict]) || (b.score - a.score));
@@ -445,7 +457,7 @@ function renderChips() {
     const c = calcNow, chips = [];
     if (house && c.chart) {
         chips.push(`หัน <b class="text-yellow-300 cn-char">${HOUSE_M24[c.chart.f.m]}</b> ${house.facing.toFixed(1)}° · นั่ง <b class="text-yellow-300 cn-char">${HOUSE_M24[c.chart.s.m]}</b>`);
-        const r = housePeriodRange(c.P); chips.push(`ยุค <b class="text-yellow-300">${c.P}</b> (${r[0]}–${r[1]})`);
+        const r = housePeriodRange(c.P); chips.push(`ผังยุค <b class="text-yellow-300">${c.P}</b> (${r[0]}–${r[1]})${c.C !== c.P ? ` · ตอนนี้ยุค <b class="text-yellow-300">${c.C}</b>` : ''}`);
     } else chips.push('<span class="text-amber-300">ยังไม่ได้บันทึกทิศบ้าน</span>');
     chips.push(`เจ้าของบ้าน Kua <b class="text-yellow-300">${c.kua}</b> <span class="cn-char">${PERSON_KUA_TRIGRAM[c.kua]}</span> กลุ่ม${personIsEast(c.kua) ? 'ตะวันออก' : 'ตะวันตก'}`);
     chips.push(`ดาวจรปี <b class="text-yellow-300">${c.annualYear}</b>`);

@@ -5,7 +5,8 @@
 let houseMeasuring = false;  // กำลังวัดทิศบ้านใหม่ด้วยเข็มทิศ
 function houseCurrentChart() {
     if (!house) return null;
-    return houseChart(house.facing, housePeriod(), state.calc.stars.center);
+    // ดาวรุ่ง/ถอย เทียบยุคปัจจุบันตามวันที่ที่เลือก (เหมือน APK F04)
+    return houseChart(house.facing, housePeriod(), state.calc.stars.center, state.calc.timeBazi ? houseCurrentPeriod(state.calc.timeBazi.solarYear) : undefined);
 }
 
 // ---------- จานในโหมดดาวเหินของบ้าน ----------
@@ -35,14 +36,14 @@ function drawHouseDial(g) {
     for (let p = 0; p < 8; p++) {
         const mid = p * 45;
         if (ch) {
-            const isWang = ch.mt.g[p] === ch.P || ch.ft.g[p] === ch.P;
+            const isWang = ch.mt.g[p] === ch.C || ch.ft.g[p] === ch.C;
             if (ch.an.g[p] === 5) drawSeg(rTai, rBrn, mid - 22.5, mid + 22.5, 'rgba(250,204,21,0.12)', 'transparent');
             else if (isWang) drawSeg(rTai, rBrn, mid - 22.5, mid + 22.5, 'rgba(74,222,128,0.13)', 'transparent');
         }
         drawSeg(rTai, rBrn, mid - 22.5, mid + 22.5, 'transparent', 'rgba(239,68,68,0.6)', 3);
         drawTxt(HOUSE_PALACES[p] + ' ' + HOUSE_PALACE_SHORT[p], rBrn * 0.9, mid, '#cbd5e1', `600 ${baseFontSize * 0.5}px Prompt`, 'transparent');
         if (!ch) continue;
-        houseStarBox(rBrn * 0.58, mid, upright, ch.mt.g[p], ch.ft.g[p], ch.base.g[p], ch.an.g[p], ch.P, baseFontSize * 1.35);
+        houseStarBox(rBrn * 0.58, mid, upright, ch.mt.g[p], ch.ft.g[p], ch.base.g[p], ch.an.g[p], ch.C, baseFontSize * 1.35);
     }
     drawSeg(rBrn * 0.99, rBrn, 0, 360, 'transparent', ringColor, 2);
 
@@ -58,7 +59,7 @@ function drawHouseDial(g) {
     // กลางบ้าน (แทนรูปหยินหยาง)
     ctx.beginPath(); ctx.arc(0, 0, rTai * 1.35, 0, 2 * Math.PI); ctx.fillStyle = '#0f172a'; ctx.fill();
     ctx.strokeStyle = ringColor; ctx.lineWidth = 2; ctx.stroke();
-    if (ch) houseStarBox(0, 0, upright, ch.mt.c, ch.ft.c, ch.base.c, ch.an.c, ch.P, baseFontSize * 1.0, true);
+    if (ch) houseStarBox(0, 0, upright, ch.mt.c, ch.ft.c, ch.base.c, ch.an.c, ch.C, baseFontSize * 1.0, true);
 }
 // กล่องตัวเลขดาว: ภูเขา (เหลือง) · น้ำ (ฟ้า) · ยุค (เทา) · จรปี (ป้ายเหลือง)
 function houseStarBox(r, deg, upright, m, f, b, a, P, fs, plain) {
@@ -90,7 +91,7 @@ function houseAdvice(deg) {
     const ch = houseCurrentChart();
     if (!ch) return { title: 'ยังไม่ได้บันทึกทิศบ้าน', remedy: 'หันเข็มทิศออกหน้าบ้าน แล้วกดปุ่ม "บันทึกทิศบ้าน" ด้านล่าง', level: 'normal' };
     const p = Math.floor(norm360(deg + 22.5) / 45) % 8;
-    const m = ch.mt.g[p], f = ch.ft.g[p], b = ch.base.g[p], a = ch.an.g[p], P = ch.P;
+    const m = ch.mt.g[p], f = ch.ft.g[p], b = ch.base.g[p], a = ch.an.g[p], P = ch.C;
     const notes = []; let level = 'normal';
     const good = (n) => ['wang', 'sheng'].includes(houseTimeliness(n, P).k);
     if (m === P && f === P) { notes.push('ดาวรุ่งคู่ ดีมาก'); level = 'good'; }
@@ -122,7 +123,7 @@ function renderHousePanel() {
     const ringCell = [1, 2, 5, 8, 7, 6, 3, 0], cells = new Array(9);
     for (let k = 0; k < 8; k++) cells[ringCell[k]] = (ch.f.palace + k) % 8;
     cells[4] = 'c';
-    const P = ch.P;
+    const P = ch.C;
     const box = (p) => {
         const c = p === 'c';
         const m = c ? ch.mt.c : ch.mt.g[p], f = c ? ch.ft.c : ch.ft.g[p], b = c ? ch.base.c : ch.base.g[p], a = c ? ch.an.c : ch.an.g[p];
@@ -136,14 +137,14 @@ function renderHousePanel() {
             <span class="absolute left-1.5 bottom-0.5 text-[9px] font-sans text-slate-400">${c ? 'กลาง' : HOUSE_PALACES[p] + ' ' + HOUSE_PALACE_SHORT[p]}</span>
             <span class="absolute right-1 bottom-1 text-[10px] font-black px-1 rounded ${a === 5 ? 'bg-red-400' : 'bg-amber-400'} text-slate-900">${a}</span></div>`;
     };
-    const r = housePeriodRange(P);
-    const pats = ch.pat.length ? ch.pat.map(x => `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border ${x.k === 'good' ? 'border-emerald-600 text-emerald-300' : x.k === 'bad' ? 'border-red-600 text-red-300' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> ${x.t}</div>`).join('')
-        : '<div class="mt-2 text-[10px] text-slate-400">ผังทั่วไป ไม่เข้าเกณฑ์ 旺山旺向 / 上山下水 / 雙星</div>';
+    const r = housePeriodRange(ch.P);
+    const pats = ch.pat.length ? ch.pat.map(x => `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border ${x.k === 'good' ? 'border-emerald-600 text-emerald-300' : x.k === 'bad' ? 'border-red-600 text-red-300' : 'border-amber-500 text-amber-200'}"><b class="cn-char">${x.c}</b> <b>${x.th}</b> · ${x.t}</div>`).join('')
+        : '<div class="mt-2 text-[10px] text-slate-400">ทิศปกติ ไม่เข้าเกณฑ์ผังพิเศษ</div>';
     const warn = houseWarning(house.facing);
     el.innerHTML = `
-        <div class="text-[10px] md:text-[11px] text-slate-300 mb-2">นั่ง <b class="cn-char">${HOUSE_M24[ch.s.m]}</b> ${norm360(house.facing + 180).toFixed(1)}° · หัน <b class="cn-char">${HOUSE_M24[ch.f.m]}</b> ${house.facing.toFixed(1)}° · ยุค ${P} (${r[0]}–${r[1]})</div>
+        <div class="text-[10px] md:text-[11px] text-slate-300 mb-2">นั่ง <b class="cn-char">${HOUSE_M24[ch.s.m]}</b> ${norm360(house.facing + 180).toFixed(1)}° · หัน <b class="cn-char">${HOUSE_M24[ch.f.m]}</b> ${house.facing.toFixed(1)}° · ผังยุค ${ch.P} (${r[0]}–${r[1]})${ch.C !== ch.P ? ` · ตอนนี้ยุค ${ch.C}` : ''}</div>
         <div class="grid grid-cols-3 gap-[3px] bg-slate-600 p-[3px] rounded-lg">${cells.map(box).join('')}</div>
-        <div class="flex flex-wrap justify-center gap-x-3 mt-1.5 text-[9px]"><span class="text-amber-400">■ ดาวภูเขา</span><span class="text-blue-400">■ ดาวน้ำ</span><span class="text-slate-400">■ ดาวยุค</span><span class="text-amber-400">▣ ดาวจรปี ${state.calc.timeBazi.solarYear}</span><span class="text-green-400">□ ดาวรุ่ง</span></div>
+        <div class="flex flex-wrap justify-center gap-x-3 mt-1.5 text-[9px]"><span class="text-amber-400">■ ดาวภูเขา</span><span class="text-blue-400">■ ดาวน้ำ</span><span class="text-slate-400">■ ดาวยุค</span><span class="text-amber-400">▣ ดาวจรปี ${state.calc.timeBazi.solarYear}</span><span class="text-green-400">□ ดาวรุ่งยุค ${ch.C}</span></div>
         ${pats}
         ${warn ? `<div class="mt-2 text-[10px] text-amber-300">${warn}</div>` : ''}`;
 }
