@@ -7,7 +7,7 @@
 - `stdsk99/luopan-app` ใช้**อ่านอ้างอิงเท่านั้น** ห้ามแก้
 - อ้างอิงคู่กับไฟล์ APK ต้นแบบ `Thai_F12_LuoPan_release.apk` (FengShui100 / อ.มาศ) เสมอ
 - สูตรดาวเหินใน `js/fs-core.js` ตรวจกับตาราง `StarTab` ของ APK แล้ว ตรงครบ 216/216
-- **อ่าน `docs/REFERENCE.md` ก่อนเริ่มงาน**: สรุปสูตรและองค์ความรู้จาก APK, สิ่งที่แอปกำหนดเอง และงานค้าง (อัปเดตไฟล์นี้เมื่อพบความรู้ใหม่)
+- **อ่านบันทึกสูตร `REFERENCE.md` ก่อนเริ่มงาน**: เก็บไว้ที่ส่วนตัวของเจ้าของ (ไม่อยู่ใน repo สาธารณะนี้แล้ว) ถ้าไม่มีในเซสชัน ให้ขอไฟล์จากเจ้าของ · อัปเดตไฟล์นั้นเมื่อพบความรู้ใหม่ และห้ามนำกลับเข้า repo นี้
 
 ## โครงสร้าง (โหลดตามลำดับ)
 - `index.html` (เข็มทิศ): `js/version-check.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `magdec.js` → `compass.js` → `fs-core.js` → `fs-pairs.js` → `flyingstar.js` → `person-core.js` → `person.js` → `north-ui.js` → `main.js`
