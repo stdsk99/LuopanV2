@@ -4,7 +4,7 @@
 // โหมดทั่วไปเปิด "บ้านของฉัน" (mine) เสมอ · โหมดมืออาชีพเปิดบ้านที่เลือกล่าสุด (cur)
 
 const HOUSES_KEY = 'luopan_houses';
-const HOUSE_DATA_KEYS = { house: 'luopan_house', plan: 'luopan_plan', birth: 'luopan_birthDate', gender: 'luopan_gender' };
+const HOUSE_DATA_KEYS = { house: 'luopan_house', plan: 'luopan_plan', birth: 'luopan_birthDate', gender: 'luopan_gender', furn: 'luopan_furniture' };
 let HOUSES = null;   // { v, list: [{ id, name, owner, phone, addr, visit, note, created, data: { house, plan, birth, gender } | null }], mine, cur, active }
 
 const housesNewId = () => 'h' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

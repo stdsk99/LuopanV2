@@ -91,7 +91,9 @@ function renderSummary() {
             ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}</details>
     </section>
     <a href="compass.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#a16207">
-        <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
+        <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>
+    <a href="furniture.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#065f46">
+        <span class="text-3xl">🪑</span><span class="flex-1"><b class="text-emerald-300">ตรวจทิศเฟอร์นิเจอร์</b><span class="block text-[12px] text-slate-400">หัวเตียง โต๊ะ เตา ประตู หิ้งพระ หันถูกทิศไหม ควรหมุนไปทางไหน</span></span><span class="text-emerald-400">›</span></a>`;
     // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
     const RING = [1, 2, 5, 8, 7, 6, 3, 0];
     const cellPal = new Array(9).fill('C');
