@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Luopan 3D Pro - Advanced Feng Shui Analyzer</title>
+    <!-- โหมดทั่วไป: เข้าหน้าบ้านของฉันก่อน (เปิดเข็มทิศเต็มจากหน้านั้นด้วย ?full=1) -->
+    <script src="js/mode.js?v=2026.10.22-1"></script>
+    <script>if (APP_MODE === 'simple' && !/[?&]full=1/.test(location.search)) location.replace('home.html');</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
@@ -59,6 +62,11 @@
             </div>
 
             <div id="tab-config" class="p-4 space-y-5 flex-1 overflow-y-auto">
+                <div class="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50 flex items-center gap-2 text-[12px]">
+                    <span class="text-slate-300 flex-1">โหมด: <b class="text-yellow-300">มืออาชีพ</b></span>
+                    <a href="home.html" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white">🏠 สรุปบ้าน</a>
+                    <button type="button" onclick="appModeGo('simple')" class="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white">🙂 โหมดทั่วไป</button>
+                </div>
                 <div class="bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
                     <div class="flex justify-between items-center mb-3">
                         <label class="text-[13px] font-semibold text-yellow-500 flex items-center gap-1.5">🕒 กาลเวลาจร (Time)</label>
