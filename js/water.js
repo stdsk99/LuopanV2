@@ -9,8 +9,8 @@ const PERSON_DIR_TH_LOCAL = ['เหนือ', 'ตะวันออกเฉ�
 if (!house) {
     $('content').innerHTML = `<section class="card p-5 text-center text-[14px]">ยังไม่ได้บันทึกทิศบ้าน<br><a href="home.html" class="inline-block mt-3 text-sky-300 underline">ใส่ข้อมูลบ้านก่อน →</a></section>`;
 } else {
-    // ปีฮวงจุ้ยเปลี่ยนราว 4 ก.พ. (立春)
-    const now = new Date(), fy = (now.getMonth() < 1 || (now.getMonth() === 1 && now.getDate() < 4)) ? now.getFullYear() - 1 : now.getFullYear();
+    // ปีฮวงจุ้ยเปลี่ยนที่เวลา 立春 จริง (ตรงกับ APK และหน้าอื่น)
+    const fy = getExactPillars(new Date()).solarYear;
     const ch = houseChart(house.facing, housePeriod(), wrap9((2000 - fy) % 9), houseCurrentPeriod(fy));
     const G = houseWaterGuide(ch, house.facing);
     render(ch, G);
