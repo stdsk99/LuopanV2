@@ -30,6 +30,7 @@ function furnLoad() {
     try { d = JSON.parse(localStorage.getItem('luopan_furniture') || 'null'); } catch (e) {}
     if (!d || !Array.isArray(d.items)) d = { members: [], items: [] };
     if (!Array.isArray(d.members)) d.members = [];
+    if (!Array.isArray(d.rooms)) d.rooms = [];   // ผังรายห้อง (js/room-core.js)
     return d;
 }
 function furnSave(d) { try { localStorage.setItem('luopan_furniture', JSON.stringify(d)); return true; } catch (e) { return false; } }

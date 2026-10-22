@@ -16,6 +16,7 @@
 - `report.html` (รายงาน PDF ของบ้านที่เปิดอยู่ พิมพ์ด้วย window.print): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `simple-core.js` → `report.js` · ข้อมูลผู้ดูใน `luopan_consultant`
 - `furniture.html` (ตรวจทิศเฟอร์นิเจอร์ ทั้งสองโหมด): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `magdec.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `simple-core.js` → `furniture-core.js` → `furniture.js` · ข้อมูลต่อบ้านใน `luopan_furniture` (สมาชิก + ของแต่ละชิ้น)
 - `water.html` (จุดวางน้ำ/ประตู + ประตูเมือง ทั้งสองโหมด): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `magdec.js` → `fs-core.js` → `remedy-core.js` → `remedy-ui.js` → `heading.js` → `water-core.js` → `water.js` · `houseGates` (城門訣) อยู่ใน fs-core · `heading.js` = อ่านเซนเซอร์เข็มทิศใช้ร่วม
+- `room.html` (ผังรายห้อง 小太極 ทั้งสองโหมด): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `magdec.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `remedy-ui.js` → `simple-core.js` → `furniture-core.js` → `heading.js` → `room-core.js` → `room.js` · ห้องเก็บใน `luopan_furniture.rooms`
 - `remedies.html` (คลังวิธีแก้): `js/version-check.js` → `mode.js` → `remedy-core.js` → `remedy-ui.js` (สคริปต์ในหน้า)
 - `index.html` (เข็มทิศ): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `magdec.js` → `compass.js` → `fs-core.js` → `fs-pairs.js` → `flyingstar.js` → `person-core.js` → `person.js` → `north-ui.js` → `main.js`
 - `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `plan.js`
@@ -32,6 +33,6 @@
 
 ## ทุกครั้งที่แก้ไข
 1. ทำใน branch ใหม่ เปิด Pull Request แล้ว **merge เองได้เลยหลังทดสอบผ่าน** (เจ้าของอนุญาตแล้ว) จากนั้นรอ GitHub Pages สร้างเว็บเสร็จ และแจ้งเจ้าของ
-2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html`, `measure.html`, `sun.html`, `home.html`, `compass.html`, `remedies.html`, `houses.html`, `report.html`, `furniture.html` และ `water.html`
+2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html`, `measure.html`, `sun.html`, `home.html`, `compass.html`, `remedies.html`, `houses.html`, `report.html`, `furniture.html`, `water.html` และ `room.html`
    (ไม่งั้นผู้ใช้จะเห็นของเก่าจาก cache นานถึง 10 นาที)
 3. ข้อความในแอปและคอมเมนต์เป็นภาษาไทย
