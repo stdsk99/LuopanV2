@@ -29,6 +29,36 @@ const starsHtml = (n) => {
 const remedyHtml = (rm) => rm ? `<span class="inline-flex flex-wrap gap-1.5 align-middle">${rm.items.map(it => remedyChip(it, 24)).join('')}</span>${rm.note ? ` <span class="text-red-300 text-[11px]">(${rm.note})</span>` : ''}` : '';
 const dirName = (p) => `${SIMPLE_PAL_TH[p]}${cn(SIMPLE_TRIGRAM[p])}`;
 
+// ---------- เครื่องมือ (ไอคอน 4×3) ----------
+const TOOLS = [
+    { h: 'compass.html', i: '🧭', l: 'หล่อแก', c: '#a16207' },
+    { h: 'furniture.html', i: '🪑', l: 'ตรวจเฟอร์นิเจอร์', c: '#047857' },
+    { h: 'room.html', i: '🚪', l: 'ผังรายห้อง', c: '#c2410c' },
+    { h: 'water.html', i: '💧', l: 'จุดวางน้ำ/ประตู', c: '#1d4ed8' },
+    { h: 'today.html', i: '📅', l: 'ทิศมงคลวันนี้', c: '#7e22ce', sub: 'today' },
+    { h: 'annual.html', i: '🗓️', l: 'ผังประจำปี', c: '#b45309' },
+    { h: 'remedies.html', i: '🧰', l: 'คลังวิธีแก้', c: '#be123c' },
+    { h: 'report.html', i: '📄', l: 'รายงาน PDF', c: '#475569' },
+    { h: 'plan.html', i: '📐', l: 'แปลนบ้าน', c: '#0e7490' },
+    { h: 'sun.html', i: '☀️', l: 'วัดทิศเงาแดด', c: '#ca8a04' },
+    { h: 'measure.html', i: '🛰️', l: 'วัดทิศแผนที่', c: '#0369a1' },
+    { h: 'index.html?full=1', i: '🔭', l: 'หล่อแก 3 มิติ', c: '#4338ca' }
+];
+// ทิศเงินของวันนี้ (財神) สำหรับป้ายเล็กใต้ไอคอน
+function todayCaiDir() {
+    try {
+        const d = new Date(), l = Solar.fromYmdHms(d.getFullYear(), d.getMonth() + 1, d.getDate(), 12, 0, 0).getLunar();
+        const m = { '坎': 'เหนือ', '艮': 'อีสาน', '震': 'ตะวันออก', '巽': 'อาคเนย์', '离': 'ใต้', '坤': 'หรดี', '兑': 'ตะวันตก', '乾': 'พายัพ' };
+        return m[l.getDayPositionCai()] || '';
+    } catch (e) { return ''; }
+}
+function toolsGrid() {
+    const cai = todayCaiDir();
+    return `<nav class="card p-3" aria-label="เครื่องมือ"><div class="grid grid-cols-4 gap-x-1 gap-y-3">${TOOLS.map(t => `<a href="${t.h}" class="flex flex-col items-center text-center gap-1 rounded-xl py-1 hover:bg-slate-800/60">
+        <span class="w-12 h-12 rounded-2xl flex items-center justify-center text-[24px]" style="background:${t.c}33;border:1px solid ${t.c}aa">${t.i}</span>
+        <span class="text-[11px] leading-tight text-slate-200">${t.l}</span>${t.sub === 'today' && cai ? `<span class="text-[10px] leading-none text-yellow-300">💰 ${cai}</span>` : ''}</a>`).join('')}</div></nav>`;
+}
+
 // สถานะของแต่ละทิศสำหรับผังสี: good / bad / mid
 const palState = simplePalState, palLabel = simplePalLabel;
 const STATE_STYLE = {
@@ -74,7 +104,7 @@ function renderSummary() {
                 <li>1. วัดทิศหน้าบ้าน</li><li>2. ใส่ปีที่สร้างบ้าน</li><li>3. ดูผลและวิธีแก้</li>
             </ol>
             <p class="text-[12px] text-slate-400 mt-3">เริ่มที่ "ข้อมูลบ้าน" ด้านล่าง</p></section>
-            <a href="compass.html" class="card p-3 flex items-center gap-3" style="border-color:#a16207"><span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ใช้วัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
+            ${toolsGrid()}`;
         $('setup').open = true;
         return;
     }
@@ -90,16 +120,7 @@ function renderSummary() {
             <ul class="mt-2 space-y-1">${s.reasons.map(r => `<li class="flex gap-2"><span class="${r.ok ? 'text-emerald-400' : 'text-rose-400'} font-bold">${r.ok ? '✓' : '✗'}</span><span>${esc(r.t)}${cn(r.cn)}</span></li>`).join('')}</ul>
             ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}</details>
     </section>
-    <a href="compass.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#a16207">
-        <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>
-    <a href="furniture.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#065f46">
-        <span class="text-3xl">🪑</span><span class="flex-1"><b class="text-emerald-300">ตรวจทิศเฟอร์นิเจอร์</b><span class="block text-[12px] text-slate-400">หัวเตียง โต๊ะ เตา ประตู หิ้งพระ หันถูกทิศไหม ควรหมุนไปทางไหน</span></span><span class="text-emerald-400">›</span></a>
-    <a href="today.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#6b21a8">
-        <span class="text-3xl">📅</span><span class="flex-1"><b class="text-purple-300">ทิศมงคลวันนี้</b><span class="block text-[12px] text-slate-400">ทิศเงิน ทิศโชค ทิศผู้อุปถัมภ์ ยามดี และสิ่งที่ควรทำวันนี้</span></span><span class="text-purple-400">›</span></a>
-    <a href="room.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#7c2d12">
-        <span class="text-3xl">🚪</span><span class="flex-1"><b class="text-orange-300">ผังรายห้อง</b><span class="block text-[12px] text-slate-400">ในห้องนอน/ห้องทำงาน มุมไหนวางเตียง โต๊ะ น้ำ หรือของแก้ (เหมาะกับคอนโด)</span></span><span class="text-orange-400">›</span></a>
-    <a href="water.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#1e40af">
-        <span class="text-3xl">💧</span><span class="flex-1"><b class="text-sky-300">จุดวางน้ำและประตู</b><span class="block text-[12px] text-slate-400">ทิศไหนควรมีน้ำ ประตูรอง ทางเดิน · ทิศไหนควรสูงทึบ · ประตูเมือง 城門</span></span><span class="text-sky-400">›</span></a>`;
+    ${toolsGrid()}`;
     // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
     const RING = [1, 2, 5, 8, 7, 6, 3, 0];
     const cellPal = new Array(9).fill('C');
