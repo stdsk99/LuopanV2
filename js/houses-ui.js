@@ -37,6 +37,7 @@ function render() {
             <div class="flex flex-wrap gap-1.5 mt-2.5">
                 ${act ? `<a href="index.html" class="btn btn-gold">🧭 เข็มทิศ</a><a href="plan.html" class="btn">📐 แปลน</a><a href="home.html" class="btn">⭐ สรุป</a>`
                       : `<button type="button" class="btn btn-gold" data-act="open" data-id="${r.id}">เปิดบ้านนี้</button>`}
+                <button type="button" class="btn" data-act="report" data-id="${r.id}">📄 รายงาน</button>
                 <button type="button" class="btn" data-act="edit" data-id="${r.id}">แก้ไข</button>
                 <button type="button" class="btn" data-act="copy" data-id="${r.id}">คัดลอก</button>
                 ${mine ? '' : `<button type="button" class="btn" data-act="mine" data-id="${r.id}">ตั้งเป็นบ้านของฉัน</button>`}
@@ -76,6 +77,7 @@ $('list').addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     const id = b.dataset.id, r = housesFind(id);
     if (b.dataset.act === 'open') { if (housesOpen(id)) render(); }
+    else if (b.dataset.act === 'report') { if (housesOpen(id)) location.href = 'report.html'; }
     else if (b.dataset.act === 'edit') openForm(id);
     else if (b.dataset.act === 'copy') { housesCopy(id); render(); }
     else if (b.dataset.act === 'mine') { HOUSES.mine = id; housesWrite(); render(); }
