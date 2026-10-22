@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>รายงานฮวงจุ้ยบ้าน - Luopan 3D Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@600&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-7";</script>
+    <script src="js/version-check.js?v=2026.10.22-7"></script>
+    <script src="js/mode.js?v=2026.10.22-7"></script>
+    <script src="js/houses.js?v=2026.10.22-7"></script>
+    <style>
+        :root { --gold: #a16207; --gold2: #ca8a04; --ink: #1c1917; --muted: #57534e; --line: #e7e5e4; --good: #047857; --bad: #be123c; --paper: #fffdf8; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Prompt', sans-serif; margin: 0; background: #44403c; color: var(--ink); font-size: 13px; line-height: 1.55; }
+        .cn { font-family: 'Noto Serif TC', 'STKaiti', 'KaiTi', serif; }
+        /* แถบเครื่องมือ (ไม่พิมพ์) */
+        .bar { position: sticky; top: 0; z-index: 10; background: #0f172a; color: #e2e8f0; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .bar a, .bar button { font: inherit; font-size: 13px; padding: 8px 12px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; text-decoration: none; cursor: pointer; }
+        .bar .gold { background: #eab308; border-color: #eab308; color: #0f172a; font-weight: 600; }
+        .cfg { background: #1e293b; color: #e2e8f0; padding: 12px 14px; display: none; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+        .cfg.open { display: grid; }
+        .cfg input { width: 100%; font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; }
+        .cfg label { font-size: 12px; color: #94a3b8; }
+        /* หน้ากระดาษ */
+        .page { width: 210mm; min-height: 297mm; margin: 14px auto; background: var(--paper); padding: 16mm 15mm 14mm; position: relative; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+        @media (max-width: 820px) { .page { width: 100%; min-height: 0; margin: 10px 0; padding: 18px 16px; box-shadow: none; } }
+        .page::before { content: ''; position: absolute; inset: 7mm; border: 1px solid #e8dcc0; pointer-events: none; }
+        h2 { font-size: 18px; margin: 0 0 10px; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+        h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, #d6c08a, transparent); }
+        h3 { font-size: 14px; margin: 0; }
+        .muted { color: var(--muted); }
+        .good { color: var(--good); } .bad { color: var(--bad); }
+        .foot { position: absolute; left: 15mm; right: 15mm; bottom: 9mm; font-size: 10px; color: #a8a29e; display: flex; justify-content: space-between; }
+        @media (max-width: 820px) { .foot { position: static; margin-top: 14px; } }
+        /* ปก */
+        .cover { text-align: center; display: flex; flex-direction: column; }
+        .seal { width: 92px; height: 92px; margin: 10mm auto 4mm; }
+        .cover h1 { font-size: 28px; margin: 0; letter-spacing: .5px; }
+        .stars { font-size: 40px; letter-spacing: 4px; line-height: 1; }
+        .box { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; }
+        .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; text-align: left; }
+        .kv b { color: var(--muted); font-weight: 500; }
+        /* ผัง 9 ช่อง */
+        .grid9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .cell { border: 1.5px solid; border-radius: 10px; padding: 7px 6px; text-align: center; min-height: 64px; }
+        .s-good { background: #ecfdf5; border-color: #10b981; } .s-bad { background: #fff1f2; border-color: #f43f5e; } .s-mid { background: #f5f5f4; border-color: #d6d3d1; }
+        .row { display: grid; grid-template-columns: 30px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); }
+        .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; }
+        .rem { display: grid; grid-template-columns: 46px 1fr; gap: 8px; align-items: center; margin-top: 6px; }
+        table { width: 100%; border-collapse: collapse; } td, th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; } th { color: var(--muted); font-weight: 500; font-size: 12px; }
+        .fs { display: grid; grid-template-columns: repeat(3, 1fr); border: 1.5px solid #78716c; }
+        .fs > div { border: 1px solid #d6d3d1; height: 80px; position: relative; font-weight: 700; }
+        .fs .m { position: absolute; left: 7px; top: 4px; font-size: 18px; color: #b45309; } .fs .w { position: absolute; right: 7px; top: 4px; font-size: 18px; color: #1d4ed8; }
+        .fs .b { position: absolute; left: 0; right: 0; top: 26px; text-align: center; font-size: 22px; color: #a8a29e; } .fs .a { position: absolute; right: 6px; bottom: 4px; font-size: 11px; background: #fde68a; padding: 0 5px; border-radius: 4px; }
+        .fs .d { position: absolute; left: 6px; bottom: 3px; font-size: 10px; color: var(--muted); font-weight: 400; }
+        @page { size: A4; margin: 0; }
+        @media print {
+            body { background: #fff; }
+            .bar, .cfg { display: none !important; }
+            .page { margin: 0; box-shadow: none; width: auto; height: auto; min-height: 0; padding: 13mm 14mm; page-break-after: always; break-after: page; }
+            .page::before { display: none; }
+            .cover { min-height: 270mm; }
+            .foot { position: static; margin-top: 8px; }
+            body { font-size: 12px; line-height: 1.45; background: var(--paper); }
+            .row { padding: 6px 0; }
+            .guide { font-size: 10.5px !important; } .guide svg { width: 42px; height: 42px; }
+            .page:last-child { page-break-after: auto; break-after: auto; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <a href="index.html" data-back id="backLink">← กลับ</a>
+        <b style="flex:1;min-width:120px">📄 รายงาน</b>
+        <button type="button" id="cfgBtn">✏️ ข้อมูลผู้ดู</button>
+        <button type="button" class="gold" id="printBtn">⬇️ บันทึกเป็น PDF</button>
+    </div>
+    <div class="cfg" id="cfg">
+        <label>ชื่อผู้ดู/ซินแส<input id="cName"></label>
+        <label>ชื่อสำนัก<input id="cOrg"></label>
+        <label>เบอร์โทร<input id="cPhone" type="tel"></label>
+        <label>LINE ID<input id="cLine"></label>
+    </div>
+    <div id="doc"></div>
+
+    <script src="js/data.js?v=2026.10.22-7"></script>
+    <script src="js/calc.js?v=2026.10.22-7"></script>
+    <script src="js/fs-core.js?v=2026.10.22-7"></script>
+    <script src="js/fs-pairs.js?v=2026.10.22-7"></script>
+    <script src="js/person-core.js?v=2026.10.22-7"></script>
+    <script src="js/remedy-core.js?v=2026.10.22-7"></script>
+    <script src="js/simple-core.js?v=2026.10.22-7"></script>
+    <script src="js/report.js?v=2026.10.22-7"></script>
+</body>
+</html>

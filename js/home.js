@@ -114,13 +114,7 @@ function renderSummary() {
         <div id="palDetail" class="mt-3 rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-[13px] text-slate-300 leading-relaxed" aria-live="polite"></div>
     </section>`;
     // ---------- 3. ทำ 3 อย่างนี้ก่อน ----------
-    const acts = [];
-    const fixLabel = (b) => b.fix ? b.fix.items.map(i => i.l).join(' หรือ ') : (b.fixText || b.avoid || '');
-    if (s.bads[0]) { const x = s.bads[0], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
-    if (s.goods[0]) { const x = s.goods[0]; acts.push({ i: '✨', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${x.good.title}`, d: `ใช้เป็น${x.good.useShort}` }); }
-    const y5 = s.yearBad.find(y => y.cn === '五黃');
-    if (y5 && !acts.some(a => a.p === y5.p)) acts.push({ i: '🗓️', p: y5.p, t: `ปีนี้${SIMPLE_PAL_TH[y5.p]}: ห้ามซ่อม เจาะ ทุบ`, d: 'แขวนกระดิ่งลมทองเหลือง' });
-    else if (s.bads[1]) { const x = s.bads[1], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
+    const acts = simpleActions(s), y5 = s.yearBad.find(y => y.cn === '五黃');
     h += `<section class="card p-4" aria-labelledby="hAct">
         <h2 id="hAct" class="font-bold text-emerald-300">👉 ทำ 3 อย่างนี้ก่อน</h2>
         <ol class="mt-2 space-y-2">${acts.map((a, i) => `<li><button type="button" data-goto="${a.p}" class="w-full text-left flex gap-3 rounded-xl bg-slate-950/60 border border-slate-800 p-3 hover:border-yellow-600">

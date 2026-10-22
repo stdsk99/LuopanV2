@@ -142,3 +142,14 @@ function simpleOwnerKua() {
     const d = new Date(b);
     return isNaN(d) ? 0 : personKuaOf(getExactPillars(d).solarYear, g);
 }
+// "ทำ 3 อย่างนี้ก่อน" จากผลสรุป: แก้จุดร้ายที่สุด · ใช้จุดเด่นที่สุด · ปีนี้ห้ามเจาะ (หรือจุดร้ายลำดับสอง)
+function simpleActions(s) {
+    const acts = [];
+    const fixLabel = (b) => b.fix ? b.fix.items.map(i => i.l).join(' หรือ ') : (b.fixText || b.avoid || '');
+    if (s.bads[0]) { const x = s.bads[0], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
+    if (s.goods[0]) { const x = s.goods[0]; acts.push({ i: '✨', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${x.good.title}`, d: `ใช้เป็น${x.good.useShort}` }); }
+    const y5 = s.yearBad.find(y => y.cn === '五黃');
+    if (y5 && !acts.some(a => a.p === y5.p)) acts.push({ i: '🗓️', p: y5.p, t: `ปีนี้${SIMPLE_PAL_TH[y5.p]}: ห้ามซ่อม เจาะ ทุบ`, d: 'แขวนกระดิ่งลมทองเหลือง' });
+    else if (s.bads[1]) { const x = s.bads[1], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
+    return acts;
+}

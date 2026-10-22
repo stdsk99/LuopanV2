@@ -13,6 +13,7 @@
 - `home.html` (บ้านของฉัน โหมดผู้ใช้ทั่วไป): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `remedy-ui.js` → `simple-core.js` → `home.js`
 - `compass.html` (หล่อแกแบบง่าย 2 มิติ โหมดทั่วไป): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `magdec.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `simple-core.js` → `simple-compass.js`
 - `houses.html` (บ้านและลูกค้า เฉพาะโหมดมืออาชีพ): `js/version-check.js` → `mode.js` → `houses.js` → `fs-core.js` → `houses-ui.js`
+- `report.html` (รายงาน PDF ของบ้านที่เปิดอยู่ พิมพ์ด้วย window.print): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `remedy-core.js` → `simple-core.js` → `report.js` · ข้อมูลผู้ดูใน `luopan_consultant`
 - `remedies.html` (คลังวิธีแก้): `js/version-check.js` → `mode.js` → `remedy-core.js` → `remedy-ui.js` (สคริปต์ในหน้า)
 - `index.html` (เข็มทิศ): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `ui.js` → `luopan3d.js` → `magdec.js` → `compass.js` → `fs-core.js` → `fs-pairs.js` → `flyingstar.js` → `person-core.js` → `person.js` → `north-ui.js` → `main.js`
 - `plan.html` (วิเคราะห์บ้านบนแปลน ตาราง 9 ช่อง): `js/version-check.js` → `mode.js` → `houses.js` → `data.js` → `calc.js` → `fs-core.js` → `fs-pairs.js` → `person-core.js` → `plan.js`
@@ -29,6 +30,6 @@
 
 ## ทุกครั้งที่แก้ไข
 1. ทำใน branch ใหม่ เปิด Pull Request แล้ว **merge เองได้เลยหลังทดสอบผ่าน** (เจ้าของอนุญาตแล้ว) จากนั้นรอ GitHub Pages สร้างเว็บเสร็จ และแจ้งเจ้าของ
-2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html`, `measure.html`, `sun.html`, `home.html`, `compass.html`, `remedies.html` และ `houses.html`
+2. **เพิ่มเลขเวอร์ชัน** ให้ตรงกันใน `version.json`, `window.APP_VERSION` และ `?v=` ของทุกไฟล์ใน `index.html`, `plan.html`, `annual.html`, `measure.html`, `sun.html`, `home.html`, `compass.html`, `remedies.html`, `houses.html` และ `report.html`
    (ไม่งั้นผู้ใช้จะเห็นของเก่าจาก cache นานถึง 10 นาที)
 3. ข้อความในแอปและคอมเมนต์เป็นภาษาไทย
