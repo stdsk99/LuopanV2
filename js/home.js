@@ -36,6 +36,45 @@ const starsHtml = (n) => {
 const remedyHtml = (rm) => rm ? `<span class="inline-flex flex-wrap gap-x-3 gap-y-1">${rm.items.map(it => `<span class="whitespace-nowrap">${iconHtml(it, 22)} ${it.l}</span>`).join('')}</span>${rm.note ? ` <span class="text-red-300 text-[11px]">(${rm.note})</span>` : ''}` : '';
 const dirName = (p) => `${SIMPLE_PAL_TH[p]}${cn(SIMPLE_TRIGRAM[p])}`;
 
+// สถานะของแต่ละทิศสำหรับผังสี: good / bad / mid
+function palState(x) {
+    if (x.bad.some(b => b.short !== 'พลังอ่อน')) return 'bad';
+    return x.good ? 'good' : 'mid';
+}
+const palLabel = (x, st) => st === 'good' ? x.good.short : st === 'bad' ? x.bad.find(b => b.short !== 'พลังอ่อน').short : (x.bad[0] ? x.bad[0].short : 'ปกติ');
+const STATE_STYLE = {
+    good: 'background:#064e3b;border-color:#10b981;color:#d1fae5',
+    bad: 'background:#4c0519;border-color:#f43f5e;color:#ffe4e6',
+    mid: 'background:#1e293b;border-color:#334155;color:#cbd5e1'
+};
+const STATE_ICON = { good: '✅', bad: '⚠️', mid: '◽' };
+let SUM = null, SEL = null;   // ผลสรุปล่าสุด และทิศที่แตะเลือก
+
+function detailHtml(p) {
+    if (p === 'C') return `<b class="text-white">กลางบ้าน</b><div class="mt-1">รักษาให้สะอาด โปร่ง ไม่วางของหนักหรือห้องน้ำ</div>`;
+    const x = SUM.pals[p], yb = SUM.yearBad.filter(y => y.p === p), yg = SUM.yearGood.filter(y => y.p === p);
+    let h = `<b class="text-white text-[15px]">${dirName(p)}</b>`;
+    if (x.good) h += `<div class="mt-2 text-emerald-300 font-semibold">✅ ${x.good.title}${cn(x.good.cn)}</div>
+        <div>เหมาะเป็น: ${x.good.use.join(' · ')}</div>${x.good.boost ? `<div class="mt-1">เสริมด้วย: ${remedyHtml(x.good.boost)}</div>` : ''}`;
+    x.bad.forEach(b => {
+        h += `<div class="mt-2 text-rose-300 font-semibold">⚠️ ${esc(b.title)}${cn(b.cn)}</div>`;
+        if (b.text) h += `<div>${esc(b.text)}</div>`;
+        if (b.fix) h += `<div class="mt-1">แก้ด้วย: ${remedyHtml(b.fix)}</div>`;
+        if (b.fixText) h += `<div class="mt-1">แก้ด้วย: ${esc(b.fixText)}</div>`;
+        if (b.avoid) h += `<div class="text-amber-200/90">${esc(b.avoid)}</div>`;
+    });
+    yb.filter(y => !x.bad.some(b => b.cn === y.cn)).forEach(y => { h += `<div class="mt-2 text-orange-300">🗓️ ปีนี้: ${y.title}${cn(y.cn)}</div>`; });
+    yg.forEach(y => { h += `<div class="mt-2 text-yellow-200">🗓️ ปีนี้เสริมโชค: ${y.title}${cn(y.cn)} · ${remedyHtml(y.fix)}</div>`; });
+    if (!x.good && !x.bad.length && !yb.length && !yg.length) h += `<div class="mt-1">ทิศกลาง ๆ ใช้งานได้ตามปกติ</div>`;
+    h += `<div class="text-[11px] text-slate-500 mt-2">ดาวน้ำ ${x.f} · ดาวภูเขา ${x.m} · ดาวจรปี ${x.a}</div>`;
+    return h;
+}
+function selectPal(p) {
+    SEL = p;
+    document.querySelectorAll('#houseGrid [data-p]').forEach(el => { const on = el.dataset.p === String(p); el.style.outline = on ? '3px solid #facc15' : 'none'; el.setAttribute('aria-pressed', String(on)); });
+    $('palDetail').innerHTML = detailHtml(p);
+}
+
 function renderSummary() {
     const box = $('summary');
     if (!house) {
@@ -50,55 +89,69 @@ function renderSummary() {
         return;
     }
     const year = getExactPillars(new Date()).solarYear;
-    const kua = ownerKua();
-    const s = houseSummary(house.facing, housePeriod(), year, kua);
+    const s = SUM = houseSummary(house.facing, housePeriod(), year, ownerKua());
     const ch = s.ch, f = ch.f;
-    const facingTxt = `บ้านหัน${SIMPLE_PAL_TH[f.palace]}${cn(HOUSE_M24[f.m])} ${house.facing.toFixed(1)}° · สร้างยุค ${ch.P}`;
+    // ---------- 1. ดาว ----------
     let h = `<section class="card p-4" aria-labelledby="hRate">
-        <div class="text-[12px] text-slate-400">${facingTxt}</div>
-        <div class="flex items-end gap-3 mt-2">${starsHtml(s.stars)}<h2 id="hRate" class="text-2xl font-bold text-white pb-0.5">${s.rating.th}</h2></div>
+        <div class="text-[12px] text-slate-400">บ้านหัน${SIMPLE_PAL_TH[f.palace]}${cn(HOUSE_M24[f.m])} ${house.facing.toFixed(1)}° · สร้างยุค ${ch.P}</div>
+        <div class="flex items-end gap-3 mt-1">${starsHtml(s.stars)}<h2 id="hRate" class="text-2xl font-bold text-white pb-0.5">${s.rating.th}</h2></div>
         <p class="text-[13px] text-slate-300 mt-1">${s.rating.t}</p>
-        <ul class="mt-3 space-y-1 text-[13px]">${s.reasons.map(r => `<li class="flex gap-2"><span class="${r.ok ? 'text-emerald-400' : 'text-red-400'} font-bold">${r.ok ? '✓' : '✗'}</span><span>${esc(r.t)}${cn(r.cn)}</span></li>`).join('')}</ul>
-        ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}
+        <details class="mt-2 text-[13px]"><summary class="cursor-pointer text-sky-300 text-[12px]">ทำไมได้ ${s.stars} ดาว</summary>
+            <ul class="mt-2 space-y-1">${s.reasons.map(r => `<li class="flex gap-2"><span class="${r.ok ? 'text-emerald-400' : 'text-rose-400'} font-bold">${r.ok ? '✓' : '✗'}</span><span>${esc(r.t)}${cn(r.cn)}</span></li>`).join('')}</ul>
+            ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}</details>
     </section>`;
-    // จุดเด่น
-    if (s.goods.length) h += `<section class="card p-4" aria-labelledby="hGood">
-        <h2 id="hGood" class="font-bold text-emerald-300">✨ จุดเด่นของบ้าน</h2>
-        <div class="mt-2 divide-y divide-slate-800">${s.goods.map(x => `<div class="py-3">
-            <div class="flex flex-wrap items-baseline gap-x-2"><b class="text-white">${dirName(x.p)}</b><span class="text-emerald-300 text-[13px]">${x.good.title}${cn(x.good.cn)}</span></div>
-            <div class="text-[13px] text-slate-300 mt-1">เหมาะเป็น: ${x.good.use.join(' · ')}</div>
-            ${x.good.boost ? `<div class="text-[13px] text-slate-300 mt-1">เสริมด้วย: ${remedyHtml(x.good.boost)}</div>` : ''}
-            <div class="text-[11px] text-slate-500 mt-1">${x.good.why}</div></div>`).join('')}</div></section>`;
-    // จุดต้องแก้
-    if (s.bads.length) h += `<section class="card p-4" aria-labelledby="hBad">
-        <h2 id="hBad" class="font-bold text-amber-300">🛠️ จุดที่ควรแก้</h2>
-        <div class="mt-2 divide-y divide-slate-800">${s.bads.map(x => { const b = x.bad[0]; return `<div class="py-3">
-            <div class="flex flex-wrap items-baseline gap-x-2"><b class="text-white">${dirName(x.p)}</b><span class="text-red-300 text-[13px]">${esc(b.title)}${cn(b.cn)}</span></div>
-            ${b.text ? `<div class="text-[13px] text-slate-300 mt-1">${esc(b.text)}</div>` : ''}
-            ${b.fix ? `<div class="text-[13px] text-slate-300 mt-1">แก้ด้วย: ${remedyHtml(b.fix)}</div>` : ''}
-            ${b.fixText ? `<div class="text-[13px] text-slate-300 mt-1">แก้ด้วย: ${esc(b.fixText)}</div>` : ''}
-            ${b.avoid ? `<div class="text-[12px] text-amber-200/90 mt-1">${esc(b.avoid)}</div>` : ''}
-            ${x.bad.slice(1).map(o => `<div class="text-[12px] text-red-300/90 mt-1">+ ${esc(o.title)}${cn(o.cn)}</div>`).join('')}
-            <div class="text-[11px] text-slate-500 mt-1">${b.why}</div></div>`; }).join('')}</div></section>`;
-    // ปีนี้
+    // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
+    const RING = [1, 2, 5, 8, 7, 6, 3, 0];
+    const cellPal = new Array(9).fill('C');
+    RING.forEach((g, k) => { cellPal[g] = (f.palace + k) % 8; });
+    const tile = (g) => {
+        const p = cellPal[g];
+        if (p === 'C') return `<button type="button" data-p="C" class="rounded-xl border p-1.5 text-center" style="${STATE_STYLE.mid}"><div class="text-[12px] font-semibold">กลางบ้าน</div><div class="text-[11px] opacity-70">◽</div></button>`;
+        const x = s.pals[p], st = palState(x);
+        const lab = palLabel(x, st);
+        const yr = s.yearBad.some(y => y.p === p && y.cn === '五黃') && !x.bad.some(b => b.cn === '五黃') ? ' · ห้ามเจาะ' : '';
+        return `<button type="button" data-p="${p}" class="rounded-xl border p-1.5 text-center min-h-[64px]" style="${STATE_STYLE[st]}" aria-label="${SIMPLE_PAL_TH[p]} ${lab}">
+            <div class="text-[12px] font-semibold leading-tight">${HOUSE_PALACE_SHORT[p]}${cn(SIMPLE_TRIGRAM[p])}</div>
+            <div class="text-[12px] mt-0.5">${STATE_ICON[st]} ${lab}${yr}</div></button>`;
+    };
+    h += `<section class="card p-4" aria-labelledby="hMap">
+        <div class="flex items-baseline justify-between"><h2 id="hMap" class="font-bold text-yellow-300">🧭 ผังบ้านของคุณ</h2><span class="text-[11px] text-slate-400">แตะช่องเพื่อดูวิธีแก้</span></div>
+        <div class="text-center text-[11px] text-slate-400 mt-2">▲ หน้าบ้าน</div>
+        <div id="houseGrid" class="grid grid-cols-3 gap-1.5 mt-1">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(tile).join('')}</div>
+        <div class="flex justify-center gap-3 text-[11px] text-slate-400 mt-2"><span>✅ ดี</span><span>⚠️ ควรแก้</span><span>◽ ปกติ</span></div>
+        <div id="palDetail" class="mt-3 rounded-xl bg-slate-950/70 border border-slate-800 p-3 text-[13px] text-slate-300 leading-relaxed" aria-live="polite"></div>
+    </section>`;
+    // ---------- 3. ทำ 3 อย่างนี้ก่อน ----------
+    const acts = [];
+    const fixLabel = (b) => b.fix ? b.fix.items.map(i => i.l).join(' หรือ ') : (b.fixText || b.avoid || '');
+    if (s.bads[0]) { const x = s.bads[0], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
+    if (s.goods[0]) { const x = s.goods[0]; acts.push({ i: '✨', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${x.good.title}`, d: `ใช้เป็น${x.good.useShort}` }); }
+    const y5 = s.yearBad.find(y => y.cn === '五黃');
+    if (y5 && !acts.some(a => a.p === y5.p)) acts.push({ i: '🗓️', p: y5.p, t: `ปีนี้${SIMPLE_PAL_TH[y5.p]}: ห้ามซ่อม เจาะ ทุบ`, d: 'แขวนกระดิ่งลมทองเหลือง' });
+    else if (s.bads[1]) { const x = s.bads[1], b = x.bad[0]; acts.push({ i: '🛠️', p: x.p, t: `${SIMPLE_PAL_TH[x.p]}: ${b.title}`, d: fixLabel(b) }); }
+    h += `<section class="card p-4" aria-labelledby="hAct">
+        <h2 id="hAct" class="font-bold text-emerald-300">👉 ทำ 3 อย่างนี้ก่อน</h2>
+        <ol class="mt-2 space-y-2">${acts.map((a, i) => `<li><button type="button" data-goto="${a.p}" class="w-full text-left flex gap-3 rounded-xl bg-slate-950/60 border border-slate-800 p-3 hover:border-yellow-600">
+            <span class="text-xl leading-none">${a.i}</span><span class="min-w-0"><b class="text-white text-[14px]">${i + 1}. ${esc(a.t)}</b><span class="block text-[12px] text-slate-400 mt-0.5">${esc(a.d)}</span></span></button></li>`).join('')}</ol>
+    </section>`;
+    // ---------- 4. พับเก็บ: ปีนี้ / ทิศของคุณ ----------
     const be = s.year + 543;
-    h += `<section class="card p-4" aria-labelledby="hYear">
-        <h2 id="hYear" class="font-bold text-orange-300">🗓️ ปีนี้ ${be} (${s.year})</h2>
-        <div class="text-[12px] text-red-300 font-semibold mt-2">ระวัง</div>
-        <ul class="text-[13px] space-y-1.5 mt-1">${s.yearBad.map(x => `<li><b class="text-white">${dirName(x.p)}</b> · ${x.title}${cn(x.cn)}${x.fix ? `<div class="text-[12px] text-slate-400">${remedyHtml(x.fix)}</div>` : ''}</li>`).join('')}</ul>
-        <div class="text-[12px] text-emerald-300 font-semibold mt-3">เสริมโชค</div>
-        <ul class="text-[13px] space-y-1.5 mt-1">${s.yearGood.map(x => `<li><b class="text-white">${dirName(x.p)}</b> · ${x.title}${cn(x.cn)}<div class="text-[12px] text-slate-400">${remedyHtml(x.fix)}</div></li>`).join('')}</ul>
-        <a href="annual.html" class="inline-block mt-3 text-[12px] text-sky-300 underline">ดูผังประจำปีพร้อมจานทิศ →</a>
-    </section>`;
-    // เจ้าของบ้าน
-    if (s.person) h += `<section class="card p-4" aria-labelledby="hPerson">
-        <h2 id="hPerson" class="font-bold text-sky-300">👤 ทิศดีของเจ้าของบ้าน</h2>
-        <div class="text-[12px] text-slate-400 mt-1">เลขประจำตัว ${s.person.kua}${cn('Kua ' + PERSON_KUA_TRIGRAM[s.person.kua])} · กลุ่มทิศ${s.person.east ? 'ตะวันออก' : 'ตะวันตก'}</div>
-        <ul class="text-[13px] space-y-1.5 mt-2">${s.person.list.map(x => `<li><b class="${x.good ? 'text-emerald-300' : 'text-red-300'}">${SIMPLE_PAL_TH[x.p]}</b> · ${x.th}${cn(x.c)}<div class="text-[12px] text-slate-400">${x.tip}</div></li>`).join('')}</ul>
-    </section>`;
-    else h += `<section class="card p-4 text-[13px] text-slate-300">👤 ใส่วันเกิดเจ้าของบ้านใน "ข้อมูลบ้าน" เพื่อดูทิศดีสำหรับหัวเตียงและโต๊ะทำงาน</section>`;
-    h += `<p class="text-[12px] text-slate-400 px-1">💡 ทิศในบ้านนับจากจุดกลางบ้าน ใช้ <a href="plan.html" class="text-sky-300 underline">แปลนบ้าน</a> เพื่อดูว่าแต่ละทิศตรงกับห้องไหน</p>`;
+    const ySum = [y5 ? `ระวัง${HOUSE_PALACE_SHORT[y5.p]}` : '', s.yearGood[0] ? `โชค${HOUSE_PALACE_SHORT[s.yearGood[0].p]}` : ''].filter(Boolean).join(' · ');
+    h += `<details class="card p-4"><summary class="cursor-pointer"><b class="text-orange-300">🗓️ ปีนี้ ${be}</b> <span class="text-[12px] text-slate-400">${ySum}</span></summary>
+        <ul class="text-[13px] space-y-1.5 mt-3">${s.yearBad.map(x => `<li>⚠️ <b class="text-white">${SIMPLE_PAL_TH[x.p]}</b> · ${x.title}${cn(x.cn)}</li>`).join('')}
+        ${s.yearGood.map(x => `<li>✨ <b class="text-white">${SIMPLE_PAL_TH[x.p]}</b> · ${x.title}${cn(x.cn)} · ${remedyHtml(x.fix)}</li>`).join('')}</ul>
+        <a href="annual.html" class="inline-block mt-3 text-[12px] text-sky-300 underline">ดูผังประจำปีพร้อมจานทิศ →</a></details>`;
+    if (s.person) {
+        const best = s.person.list[0];
+        h += `<details class="card p-4"><summary class="cursor-pointer"><b class="text-sky-300">👤 ทิศดีของคุณ</b> <span class="text-[12px] text-slate-400">หัวเตียง/โต๊ะ หัน${HOUSE_PALACE_SHORT[best.p]}</span></summary>
+            <div class="text-[12px] text-slate-400 mt-2">เลขประจำตัว ${s.person.kua}${cn('Kua ' + PERSON_KUA_TRIGRAM[s.person.kua])} · กลุ่มทิศ${s.person.east ? 'ตะวันออก' : 'ตะวันตก'}</div>
+            <ul class="text-[13px] space-y-1.5 mt-2">${s.person.list.map(x => `<li><b class="${x.good ? 'text-emerald-300' : 'text-rose-300'}">${SIMPLE_PAL_TH[x.p]}</b> · ${x.th}${cn(x.c)}<div class="text-[12px] text-slate-400">${x.tip}</div></li>`).join('')}</ul></details>`;
+    } else h += `<button type="button" id="askBirth" class="card p-4 w-full text-left text-[13px] text-slate-300">👤 ใส่วันเกิดเพื่อดูทิศดีสำหรับหัวเตียงและโต๊ะทำงาน →</button>`;
     box.innerHTML = h;
+    box.querySelectorAll('#houseGrid [data-p]').forEach(el => el.addEventListener('click', () => selectPal(el.dataset.p === 'C' ? 'C' : +el.dataset.p)));
+    box.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => { selectPal(+el.dataset.goto); $('houseGrid').scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
+    const ab = $('askBirth'); if (ab) ab.addEventListener('click', () => { $('setup').open = true; $('inBirth').focus(); });
+    selectPal(s.bads[0] ? s.bads[0].p : (s.goods[0] ? s.goods[0].p : f.palace));
 }
 
 // ---------- ฟอร์มข้อมูลบ้าน ----------

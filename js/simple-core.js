@@ -16,6 +16,13 @@ const SIMPLE_RATING = [null,
     { th: 'ดีมาก', t: 'บ้านดีมาก พลังเงินและพลังคนอยู่ถูกที่' }
 ];
 
+// คู่ดาวร้าย: ป้ายสั้น + หัวข้อภาษาง่าย (ใช้แทนชื่อคู่ดาว)
+const SIMPLE_PAIR = {
+    '2-5': ['ป่วยหนัก', 'ระวังเจ็บป่วยหนัก เสียทรัพย์'], '5-5': ['อันตราย', 'ระวังอุบัติเหตุ เคราะห์ร้าย'], '5-9': ['อันตราย', 'ระวังอุบัติเหตุ ไฟ'],
+    '2-9': ['ระวังป่วย', 'ระวังโรคเรื้อรังกำเริบ'], '2-3': ['ทะเลาะ', 'ระวังทะเลาะ คดีความ'], '3-7': ['ขโมย', 'ระวังขโมย บาดเจ็บจากของมีคม'],
+    '6-7': ['ทะเลาะ', 'ระวังขัดแย้ง ทะเลาะรุนแรง'], '7-9': ['ไฟ', 'ระวังไฟไหม้ เรื่องชู้สาว'], '6-9': ['ขัดแย้ง', 'ระวังผู้ใหญ่ขัดแย้ง ปอด ศีรษะ'],
+    '1-5': ['ระวังป่วย', 'ระวังไต อาหารเป็นพิษ'], '2-2': ['ระวังป่วย', 'ระวังเจ็บป่วยเรื้อรัง']
+};
 // วังที่ดาวภูเขาดี: เสริมด้วยความมั่นคง ของหนัก (ไม่ใช้น้ำ เพราะน้ำทำให้ดาวภูเขา "ตกน้ำ")
 const SIMPLE_MOUNTAIN_BOOST = { p: 'เสริมพลังคน', items: [{ i: '🪨', l: 'หินหรือคริสตัล' }, { i: '🗄️', l: 'ตู้หรือของหนัก' }], note: 'ห้ามวางน้ำ' };
 // วิเคราะห์ทีละวัง: คะแนน, เหตุผลภาษาง่าย, ใช้ทำอะไร, ของเสริม/แก้
@@ -31,6 +38,8 @@ function simplePalace(ch, p, kua) {
     const gm = SIMPLE_GOOD(tm) && m !== 5, gf = SIMPLE_GOOD(tf) && f !== 5;
     if (gm || gf) {
         r.good = {
+            short: gm && gf ? 'เงิน+สุขภาพ' : gf ? 'เงินดี' : 'สุขภาพดี',
+            useShort: gf && gm ? 'ประตู ห้องนั่งเล่น หรือห้องนอน' : gf ? 'ประตู ห้องนั่งเล่น โต๊ะทำงาน' : 'ห้องนอน',
             title: gm && gf ? 'ดีทั้งเรื่องเงินและสุขภาพ' : gf ? 'ดีเรื่องเงิน โอกาส การค้า' : 'ดีเรื่องสุขภาพ คนในบ้าน ผู้อุปถัมภ์',
             use: [gf ? 'ประตู ทางเดิน ห้องนั่งเล่น โต๊ะทำงาน (ควรเปิดโล่ง มีการเคลื่อนไหว)' : null,
                   gm ? 'ห้องนอน มุมพักผ่อน (ควรสงบ วางตู้หรือของหนักได้)' : null].filter(Boolean),
@@ -38,15 +47,15 @@ function simplePalace(ch, p, kua) {
             why: `ดาวน้ำ ${f} ${houseTimeliness(f, C).th} · ดาวภูเขา ${m} ${houseTimeliness(m, C).th}`
         };
     } else if (e8 && e8.good) {
-        r.good = { title: `ทิศ${e8.th}ของเจ้าของบ้าน`, use: [e8.tip], boost: null, why: `ทิศ ${e8.c} ของเจ้าของบ้าน`, cn: e8.c };
+        r.good = { short: 'ทิศดีของคุณ', useShort: e8.tip, title: `ทิศ${e8.th}ของเจ้าของบ้าน`, use: [e8.tip], boost: null, why: `ทิศ ${e8.c} ของเจ้าของบ้าน`, cn: e8.c };
     }
     // ด้านที่ต้องแก้ (เรียงจากสำคัญ)
-    if (m === 5 || f === 5) r.bad.push({ title: 'ระวังอุบัติเหตุ เจ็บป่วย', fix: REMEDY[5], avoid: 'ไม่ควรเป็นห้องนอนหรือประตูหลัก ห้ามสีแดง', why: `มีดาว 5 (${m === 5 ? 'ภูเขา' : 'น้ำ'})`, cn: '五黃' });
+    if (m === 5 || f === 5) r.bad.push({ short: 'อันตราย', sev: 3, title: 'ระวังอุบัติเหตุ เจ็บป่วย', fix: REMEDY[5], avoid: 'ไม่ควรเป็นห้องนอนหรือประตูหลัก ห้ามสีแดง', why: `มีดาว 5 (${m === 5 ? 'ภูเขา' : 'น้ำ'})`, cn: '五黃' });
     const pr = fsPair(m, f);
-    if (FS_TRIGGER_BAD.includes(pr.key) && m !== 5 && f !== 5 && !(gm && gf)) r.bad.push({ title: pr.b.split(/[ ,]/).slice(0, 4).join(' '), text: pr.b, fixText: pr.r, why: `คู่ดาว ${pr.key} ${pr.t}` });
-    if (a === 5) r.bad.push({ title: 'ปีนี้ห้ามซ่อม เจาะ ทุบ', fix: REMEDY[5], avoid: 'ห้ามต่อเติมหรือเริ่มงานก่อสร้างทิศนี้ทั้งปี', why: 'ดาวจรปี 5', cn: '五黃' });
-    else if (a === 2) r.bad.push({ title: 'ปีนี้ระวังเจ็บป่วย', fix: REMEDY[2], avoid: 'ไม่ควรเป็นห้องนอนผู้สูงอายุหรือคนป่วย', why: 'ดาวจรปี 2', cn: '二黑' });
-    if (!r.bad.length && !gm && !gf && score < 0) r.bad.push({ title: 'พลังอ่อน', avoid: 'ไม่เหมาะเป็นห้องหลัก ใช้เป็นห้องเก็บของ ห้องน้ำ หรือบันไดได้', why: `ดาวน้ำ ${f} · ดาวภูเขา ${m} ไม่ใช่ดาวรุ่ง` });
+    if (FS_TRIGGER_BAD.includes(pr.key) && m !== 5 && f !== 5 && !(gm && gf)) r.bad.push({ short: SIMPLE_PAIR[pr.key][0], sev: 2, title: SIMPLE_PAIR[pr.key][1], text: pr.b, fixText: pr.r, why: `คู่ดาว ${pr.key} ${pr.t}` });
+    if (a === 5) r.bad.push({ short: 'ห้ามเจาะ', sev: 3, title: 'ปีนี้ห้ามซ่อม เจาะ ทุบ', fix: REMEDY[5], avoid: 'ห้ามต่อเติมหรือเริ่มงานก่อสร้างทิศนี้ทั้งปี', why: 'ดาวจรปี 5', cn: '五黃' });
+    else if (a === 2) r.bad.push({ short: 'ระวังป่วย', sev: 2, title: 'ปีนี้ระวังเจ็บป่วย', fix: REMEDY[2], avoid: 'ไม่ควรเป็นห้องนอนผู้สูงอายุหรือคนป่วย', why: 'ดาวจรปี 2', cn: '二黑' });
+    if (!r.bad.length && !gm && !gf && score < 0) r.bad.push({ short: 'พลังอ่อน', sev: 1, title: 'พลังอ่อน', avoid: 'ไม่เหมาะเป็นห้องหลัก ใช้เป็นห้องเก็บของ ห้องน้ำ หรือบันไดได้', why: `ดาวน้ำ ${f} · ดาวภูเขา ${m} ไม่ใช่ดาวรุ่ง` });
     return r;
 }
 
@@ -85,8 +94,10 @@ function houseSummary(facing, period, year, kua) {
     if (line) { raw -= 0.75; reasons.push({ ok: false, t: `ทิศหน้าบ้านตกเส้นอันตราย ควรวัดซ้ำหลายจุด`, cn: line.cn }); }
     const stars = Math.max(1, Math.min(5, Math.round(raw * 2) / 2));
     // ---------- จุดเด่น / จุดต้องแก้ ----------
-    const goods = pals.filter(x => x.good && !x.bad.some(b => b.cn === '五黃')).sort((x, y) => y.score - x.score).slice(0, 3);
-    const bads = pals.filter(x => x.bad.length && !goods.includes(x)).sort((x, y) => x.score - y.score).slice(0, 3);
+    const goods = pals.filter(x => x.good && !x.bad.some(b => (b.sev || 1) >= 2)).sort((x, y) => y.score - x.score).slice(0, 3);
+    const sev = (x) => Math.max(...x.bad.map(b => b.sev || 1));
+    const bads = pals.filter(x => x.bad.length && !goods.includes(x)).sort((x, y) => (sev(y) - sev(x)) || (x.score - y.score)).slice(0, 3);
+    bads.forEach(x => x.bad.sort((a, b) => (b.sev || 1) - (a.sev || 1)));
     // ---------- ปีนี้ ----------
     const gz = ((year - 4) % 60 + 60) % 60, yz = gz % 12;
     const palOf = (n) => ch.an.g.indexOf(n);
