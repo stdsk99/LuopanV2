@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ทิศมงคลวันนี้ - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-11";</script>
+    <script src="js/version-check.js?v=2026.10.22-11"></script>
+    <script src="js/mode.js?v=2026.10.22-11"></script>
+    <script src="js/houses.js?v=2026.10.22-11"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Songti TC', serif; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; }
+        .btn { font-size: 14px; padding: 8px 14px; border-radius: 10px; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; }
+        #dialWrap { position: relative; width: min(80vw, 300px); aspect-ratio: 1; margin: 0 auto; }
+        #needle { position: absolute; left: 50%; top: -4px; transform: translateX(-50%); width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 18px solid #ef4444; }
+        a:focus-visible, button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center gap-2">
+            <a href="index.html" data-back class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+            <h1 class="text-lg font-bold text-yellow-400 flex-1 truncate">📅 ทิศมงคลวันนี้</h1>
+        </div>
+    </header>
+    <main class="max-w-xl mx-auto p-3 space-y-3 pb-12"><div id="content" class="space-y-3"></div></main>
+    <script src="js/data.js?v=2026.10.22-11"></script>
+    <script src="js/calc.js?v=2026.10.22-11"></script>
+    <script src="js/magdec.js?v=2026.10.22-11"></script>
+    <script src="js/person-core.js?v=2026.10.22-11"></script>
+    <script src="js/heading.js?v=2026.10.22-11"></script>
+    <script src="js/today.js?v=2026.10.22-11"></script>
+</body>
+</html>
