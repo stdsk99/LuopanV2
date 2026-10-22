@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ตรวจทิศเฟอร์นิเจอร์ - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-8";</script>
+    <script src="js/version-check.js?v=2026.10.22-8"></script>
+    <script src="js/mode.js?v=2026.10.22-8"></script>
+    <script src="js/houses.js?v=2026.10.22-8"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Songti TC', serif; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; }
+        .btn { font-size: 13px; padding: 8px 12px; border-radius: 10px; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; }
+        .btn-gold { background: #eab308; border-color: #eab308; color: #0f172a; font-weight: 600; }
+        .fld { width: 100%; background: #020617; border: 1px solid #334155; border-radius: 10px; padding: 9px 11px; color: #fff; font-size: 16px; }
+        .add { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 14px; background: #0f172a; border: 1px solid #1e293b; font-size: 12px; }
+        .add:hover { border-color: #a16207; }
+        .add span:first-child { font-size: 26px; line-height: 1.1; }
+        dialog { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 20px; padding: 0; width: min(96vw, 480px); max-height: 92vh; }
+        dialog::backdrop { background: rgba(2, 6, 23, .78); }
+        .pal { border-radius: 10px; border: 1.5px solid #334155; background: #1e293b; padding: 8px 2px; font-size: 12px; text-align: center; }
+        .pal[aria-pressed="true"] { border-color: #facc15; background: #422006; color: #fde68a; font-weight: 600; }
+        a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center gap-2">
+            <a href="index.html" data-back class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+            <h1 class="text-lg font-bold text-yellow-400 flex-1 truncate">🪑 ตรวจทิศเฟอร์นิเจอร์</h1>
+            <span data-pro-only class="text-[11px] text-sky-200 bg-sky-900/70 border border-sky-700 rounded-full px-2.5 py-1 max-w-[34vw] truncate" data-house-name></span>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto p-3 space-y-3 pb-12">
+        <p class="text-[13px] text-slate-400 px-1">เลือกของที่ต้องการตรวจ วัดทิศด้วยมือถือ แล้วเลือกว่าของนั้นอยู่ส่วนไหนของบ้าน แอปจะบอกว่าดีไหม และควรหมุนไปทางไหน</p>
+        <div id="noHouse" class="hidden card p-3 text-[13px] text-amber-200">ยังไม่ได้บันทึกทิศบ้าน แอปตรวจทิศที่หันได้ แต่ตรวจตำแหน่งในบ้านไม่ได้ · <a href="home.html" class="underline text-sky-300">ใส่ข้อมูลบ้าน</a></div>
+
+        <section aria-labelledby="hAdd">
+            <h2 id="hAdd" class="font-semibold text-white px-1 mb-2">เพิ่มของที่ต้องการตรวจ</h2>
+            <div id="addGrid" class="grid grid-cols-4 gap-2"></div>
+        </section>
+
+        <section aria-labelledby="hItems">
+            <h2 id="hItems" class="font-semibold text-white px-1 mb-2">ผลตรวจ</h2>
+            <div id="items" class="space-y-2.5"></div>
+        </section>
+
+        <details class="card p-4" id="memBox">
+            <summary class="cursor-pointer font-semibold text-sky-300">👨‍👩‍👧 คนในบ้าน <span class="text-[12px] text-slate-400 font-normal">หัวเตียง/โต๊ะของแต่ละคนดีคนละทิศ</span></summary>
+            <div id="members" class="mt-3 space-y-2"></div>
+            <div class="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <input id="mName" class="fld" placeholder="ชื่อ เช่น ลูกชาย">
+                <select id="mGender" class="fld" style="width:auto"><option value="M">ชาย</option><option value="F">หญิง</option></select>
+                <input id="mBirth" type="date" class="fld" aria-label="วันเกิด">
+                <button type="button" id="mAdd" class="btn btn-gold">＋ เพิ่ม</button>
+            </div>
+        </details>
+    </main>
+
+    <!-- วัดทิศ/แก้ไขของ 1 ชิ้น -->
+    <dialog id="dlg" aria-labelledby="dTitle">
+        <div class="p-4 space-y-3 text-[13px]">
+            <div class="flex items-center gap-2"><span id="dIcon" class="text-3xl"></span><h2 id="dTitle" class="text-[17px] font-bold text-yellow-300 flex-1"></h2></div>
+            <label class="block">ชื่อเรียก<input id="dName" class="fld mt-1" placeholder="เช่น เตียงห้องใหญ่"></label>
+            <label class="block" id="dMemWrap">ของใคร<select id="dMem" class="fld mt-1"></select></label>
+            <div id="dFaceWrap" class="rounded-xl border border-slate-700 p-3">
+                <div class="font-semibold" id="dFaceLabel"></div>
+                <div class="text-[12px] text-slate-400 mt-0.5" id="dHow"></div>
+                <div class="flex items-end gap-3 mt-2">
+                    <div id="dDeg" class="text-4xl font-bold text-yellow-300 tabular-nums">—</div>
+                    <div id="dDir" class="text-[14px] text-white pb-1"></div>
+                </div>
+                <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-2 mt-2 items-center">
+                    <button type="button" id="dSensor" class="btn" style="background:#4f46e5;border-color:#6366f1;color:#fff">▶ ใช้เข็มทิศ</button>
+                    <input id="dManual" type="number" min="0" max="360" step="0.5" inputmode="decimal" class="fld" placeholder="หรือพิมพ์องศา">
+                </div>
+                <div id="dMsg" class="text-[12px] text-amber-300 mt-1 min-h-[1em]"></div>
+            </div>
+            <div class="rounded-xl border border-slate-700 p-3">
+                <div class="font-semibold" id="dLocLabel">อยู่ส่วนไหนของบ้าน</div>
+                <div class="text-[12px] text-slate-400">แตะช่องตามตำแหน่งในบ้าน (หน้าบ้านอยู่ด้านบน)</div>
+                <div class="text-center text-[11px] text-slate-400 mt-2">▲ หน้าบ้าน</div>
+                <div id="dGrid" class="grid grid-cols-3 gap-1.5 mt-1"></div>
+                <button type="button" class="text-[12px] text-slate-400 underline mt-1.5" id="dNoLoc">ไม่ระบุตำแหน่ง</button>
+            </div>
+            <div class="flex gap-2 pt-1">
+                <button type="button" id="dDel" class="btn" style="color:#fda4af">ลบ</button>
+                <span class="flex-1"></span>
+                <button type="button" id="dCancel" class="btn">ยกเลิก</button>
+                <button type="button" id="dSave" class="btn btn-gold">ดูผล</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script src="js/data.js?v=2026.10.22-8"></script>
+    <script src="js/calc.js?v=2026.10.22-8"></script>
+    <script src="js/magdec.js?v=2026.10.22-8"></script>
+    <script src="js/fs-core.js?v=2026.10.22-8"></script>
+    <script src="js/fs-pairs.js?v=2026.10.22-8"></script>
+    <script src="js/person-core.js?v=2026.10.22-8"></script>
+    <script src="js/remedy-core.js?v=2026.10.22-8"></script>
+    <script src="js/simple-core.js?v=2026.10.22-8"></script>
+    <script src="js/furniture-core.js?v=2026.10.22-8"></script>
+    <script src="js/furniture.js?v=2026.10.22-8"></script>
+</body>
+</html>
