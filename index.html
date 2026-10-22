@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Luopan 3D Pro - Advanced Feng Shui Analyzer</title>
     <!-- โหมดทั่วไป: เข้าหน้าบ้านของฉันก่อน (เปิดเข็มทิศเต็มจากหน้านั้นด้วย ?full=1) -->
-    <script src="js/mode.js?v=2026.10.22-2"></script>
+    <script src="js/mode.js?v=2026.10.22-3"></script>
     <script>if (APP_MODE === 'simple' && !/[?&]full=1/.test(location.search)) location.replace('home.html');</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -13,9 +13,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
-    <script>window.APP_VERSION = "2026.10.22-2";</script>
-    <script src="js/version-check.js?v=2026.10.22-2"></script>
-    <link rel="stylesheet" href="css/style.css?v=2026.10.22-2">
+    <script>window.APP_VERSION = "2026.10.22-3";</script>
+    <script src="js/version-check.js?v=2026.10.22-3"></script>
+    <link rel="stylesheet" href="css/style.css?v=2026.10.22-3">
 </head>
 <body>
     <video id="videoBackground" autoplay playsinline></video>
@@ -34,6 +34,8 @@
             <button id="quickLayerBtn" class="bg-slate-900/95 border-2 border-indigo-500 text-indigo-400 p-[clamp(8px,2vmin,16px)] rounded-2xl shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)]" title="สลับโหมดหน้าปัด">
                 <svg class="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
             </button>
+            <!-- โหมดทั่วไป: ปุ่มกลับหน้าบ้านของฉัน (mode.js แสดงเฉพาะโหมดทั่วไป) -->
+            <a href="home.html" data-simple-only style="display:none" class="bg-slate-900/95 border-2 border-emerald-500 text-emerald-300 rounded-2xl shadow-lg hover:bg-slate-800 transition-all items-center justify-center w-[clamp(48px,12vmin,64px)] h-[clamp(48px,12vmin,64px)] text-[clamp(20px,5vmin,28px)]" title="กลับหน้าบ้านของฉัน" aria-label="กลับหน้าบ้านของฉัน">🏠</a>
         </div>
 
         <!-- Floating Buttons (Right): ปรับขนาดปุ่มให้รองรับ Tablet -->
@@ -276,18 +278,18 @@
         </div>
     </div>
 
-    <script src="js/data.js?v=2026.10.22-2"></script>
-    <script src="js/calc.js?v=2026.10.22-2"></script>
-    <script src="js/ui.js?v=2026.10.22-2"></script>
-    <script src="js/luopan3d.js?v=2026.10.22-2"></script>
-    <script src="js/magdec.js?v=2026.10.22-2"></script>
-    <script src="js/compass.js?v=2026.10.22-2"></script>
-    <script src="js/fs-core.js?v=2026.10.22-2"></script>
-    <script src="js/fs-pairs.js?v=2026.10.22-2"></script>
-    <script src="js/flyingstar.js?v=2026.10.22-2"></script>
-    <script src="js/person-core.js?v=2026.10.22-2"></script>
-    <script src="js/person.js?v=2026.10.22-2"></script>
-    <script src="js/north-ui.js?v=2026.10.22-2"></script>
-    <script src="js/main.js?v=2026.10.22-2"></script>
+    <script src="js/data.js?v=2026.10.22-3"></script>
+    <script src="js/calc.js?v=2026.10.22-3"></script>
+    <script src="js/ui.js?v=2026.10.22-3"></script>
+    <script src="js/luopan3d.js?v=2026.10.22-3"></script>
+    <script src="js/magdec.js?v=2026.10.22-3"></script>
+    <script src="js/compass.js?v=2026.10.22-3"></script>
+    <script src="js/fs-core.js?v=2026.10.22-3"></script>
+    <script src="js/fs-pairs.js?v=2026.10.22-3"></script>
+    <script src="js/flyingstar.js?v=2026.10.22-3"></script>
+    <script src="js/person-core.js?v=2026.10.22-3"></script>
+    <script src="js/person.js?v=2026.10.22-3"></script>
+    <script src="js/north-ui.js?v=2026.10.22-3"></script>
+    <script src="js/main.js?v=2026.10.22-3"></script>
 </body>
 </html>
