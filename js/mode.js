@@ -21,6 +21,7 @@ function appModeGo(m) {
 // โหมดทั่วไป: ปุ่มย้อนกลับ (a[data-back]) ไปหน้าบ้านของฉันแทนเข็มทิศ
 document.addEventListener('DOMContentLoaded', () => {
     if (APP_MODE !== 'simple') return;
+    document.querySelectorAll('[data-pro-only]').forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('a[data-back]').forEach(a => { a.href = 'home.html'; a.textContent = '← บ้านของฉัน'; });
     document.querySelectorAll('[data-simple-only]').forEach(el => { el.style.display = 'flex'; });
 });

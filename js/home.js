@@ -13,7 +13,7 @@ function renderModeSwitch() {
     $('modeSimple').setAttribute('aria-pressed', String(APP_MODE === 'simple'));
     $('modePro').setAttribute('aria-pressed', String(APP_MODE === 'pro'));
 }
-$('modeSimple').addEventListener('click', () => { appModeSet('simple'); renderModeSwitch(); });
+$('modeSimple').addEventListener('click', () => { if (APP_MODE !== 'simple') appModeGo('simple'); });
 $('modePro').addEventListener('click', () => appModeGo('pro'));
 
 // ---------- ข้อมูลเจ้าของบ้าน (ชุดเดียวกับหน้าอื่น) ----------
@@ -177,6 +177,8 @@ function initSetup() {
     });
 }
 
+// โหมดมืออาชีพ: หัวเรื่องเป็นชื่อบ้านที่เปิดอยู่
+if (APP_MODE === 'pro') { const r = housesActiveRec(); if (r) $('homeTitle').textContent = r.name; }
 renderModeSwitch();
 initSetup();
 renderSummary();
