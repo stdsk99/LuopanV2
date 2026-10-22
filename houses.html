@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>บ้านและลูกค้า - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-6";</script>
+    <script src="js/version-check.js?v=2026.10.22-6"></script>
+    <script src="js/mode.js?v=2026.10.22-6"></script>
+    <!-- หน้านี้มีเฉพาะโหมดมืออาชีพ -->
+    <script>if (APP_MODE === 'simple') location.replace('home.html');</script>
+    <script src="js/houses.js?v=2026.10.22-6"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Songti TC', serif; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; }
+        .btn { font-size: 13px; padding: 7px 12px; border-radius: 10px; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; }
+        .btn:hover { background: #334155; }
+        .btn-gold { background: #eab308; border-color: #eab308; color: #0f172a; font-weight: 600; }
+        .btn-gold:hover { background: #facc15; }
+        .fld { width: 100%; background: #020617; border: 1px solid #334155; border-radius: 10px; padding: 9px 11px; color: #fff; font-size: 16px; }
+        dialog { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 18px; padding: 0; width: min(94vw, 480px); }
+        dialog::backdrop { background: rgba(2, 6, 23, .75); }
+        a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
+            <a href="index.html" class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+            <h1 class="text-lg font-bold text-yellow-400 flex-1">📁 บ้านและลูกค้า</h1>
+            <button type="button" id="addBtn" class="btn btn-gold">＋ เพิ่มบ้าน</button>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-3 space-y-3 pb-12">
+        <input type="search" id="q" class="fld" placeholder="ค้นหาชื่อบ้าน เจ้าของ ที่อยู่ เบอร์โทร" aria-label="ค้นหาบ้าน">
+        <div id="list" class="space-y-2.5"></div>
+
+        <section class="card p-4 space-y-3" aria-labelledby="hBak">
+            <h2 id="hBak" class="font-semibold text-sky-300">💾 สำรองข้อมูล</h2>
+            <p class="text-[12px] text-slate-400">ข้อมูลบ้านทั้งหมดเก็บอยู่ในเครื่องนี้เท่านั้น ถ้าล้างข้อมูลเบราว์เซอร์หรือเปลี่ยนเครื่องจะหาย ควรสำรองเป็นไฟล์ไว้เป็นระยะ และใช้ไฟล์นี้ย้ายข้อมูลไปเครื่องอื่นได้</p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="expBtn" class="btn btn-gold">⬇️ สำรองเป็นไฟล์</button>
+                <label class="btn cursor-pointer" for="impFile">⬆️ นำเข้าไฟล์สำรอง</label>
+                <input type="file" id="impFile" accept=".json,application/json" class="hidden">
+            </div>
+            <div id="impBox" class="hidden rounded-xl border border-amber-600 bg-amber-950/30 p-3 text-[13px]"></div>
+            <div>
+                <div class="flex justify-between text-[12px] text-slate-400"><span>พื้นที่ที่ใช้ในเครื่อง</span><span id="useTxt"></span></div>
+                <div class="h-2 rounded-full bg-slate-800 mt-1 overflow-hidden"><div id="useBar" class="h-full rounded-full" style="width:0;background:#22c55e"></div></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ฟอร์มเพิ่ม/แก้ไขบ้าน -->
+    <dialog id="dlg" aria-labelledby="dlgTitle">
+        <form method="dialog" id="frm" class="p-4 space-y-3 text-[13px]">
+            <h2 id="dlgTitle" class="text-[16px] font-bold text-yellow-300">เพิ่มบ้าน</h2>
+            <label class="block">ชื่อบ้าน <span class="text-rose-300">*</span><input id="fName" class="fld mt-1" required placeholder="เช่น บ้านคุณสมชาย ลาดพร้าว"></label>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="block">ชื่อเจ้าของ<input id="fOwner" class="fld mt-1"></label>
+                <label class="block">เบอร์โทร<input id="fPhone" class="fld mt-1" type="tel" inputmode="tel"></label>
+            </div>
+            <label class="block">ที่อยู่<input id="fAddr" class="fld mt-1"></label>
+            <label class="block">วันที่ไปดู<input id="fVisit" class="fld mt-1" type="date"></label>
+            <label class="block">โน้ต<textarea id="fNote" class="fld mt-1" rows="3" placeholder="สิ่งที่เห็นหน้างาน ความต้องการของลูกค้า"></textarea></label>
+            <div class="flex gap-2 justify-end pt-1">
+                <button type="button" class="btn" id="dlgCancel">ยกเลิก</button>
+                <button type="submit" class="btn btn-gold" id="dlgOk">บันทึก</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="js/fs-core.js?v=2026.10.22-6"></script>
+    <script src="js/houses-ui.js?v=2026.10.22-6"></script>
+</body>
+</html>

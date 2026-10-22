@@ -7,6 +7,7 @@ const newFloor = (name) => ({ name, img: null, aspect: 0.75, rect: null, poly: n
 let plan = null;
 try { plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); } catch (e) { plan = null; }
 if (!plan || !Array.isArray(plan.floors) || !plan.floors.length) plan = { floors: [newFloor('ชั้น 1')], cur: 0, mode: 'grid', layer: 'both' };
+plan.floors.forEach(f => { if (!Array.isArray(f.missing)) f.missing = []; if (!f.rooms) f.rooms = {}; if (f.front === undefined) f.front = 0; });
 plan.cur = Math.min(plan.cur || 0, plan.floors.length - 1);
 const floor = () => plan.floors[plan.cur];
 function planSave() {
