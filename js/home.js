@@ -17,14 +17,7 @@ $('modeSimple').addEventListener('click', () => { appModeSet('simple'); renderMo
 $('modePro').addEventListener('click', () => appModeGo('pro'));
 
 // ---------- ข้อมูลเจ้าของบ้าน (ชุดเดียวกับหน้าอื่น) ----------
-function ownerKua() {
-    let b = null, g = 'M';
-    try { b = localStorage.getItem('luopan_birthDate'); g = localStorage.getItem('luopan_gender') || 'M'; } catch (e) {}
-    if (!b) return 0;
-    const d = new Date(b);
-    if (isNaN(d)) return 0;
-    return personKuaOf(getExactPillars(d).solarYear, g);
-}
+const ownerKua = simpleOwnerKua;
 
 // ---------- ส่วนแสดงผล ----------
 const starsHtml = (n) => {
@@ -37,11 +30,7 @@ const remedyHtml = (rm) => rm ? `<span class="inline-flex flex-wrap gap-x-3 gap-
 const dirName = (p) => `${SIMPLE_PAL_TH[p]}${cn(SIMPLE_TRIGRAM[p])}`;
 
 // สถานะของแต่ละทิศสำหรับผังสี: good / bad / mid
-function palState(x) {
-    if (x.bad.some(b => b.short !== 'พลังอ่อน')) return 'bad';
-    return x.good ? 'good' : 'mid';
-}
-const palLabel = (x, st) => st === 'good' ? x.good.short : st === 'bad' ? x.bad.find(b => b.short !== 'พลังอ่อน').short : (x.bad[0] ? x.bad[0].short : 'ปกติ');
+const palState = simplePalState, palLabel = simplePalLabel;
 const STATE_STYLE = {
     good: 'background:#064e3b;border-color:#10b981;color:#d1fae5',
     bad: 'background:#4c0519;border-color:#f43f5e;color:#ffe4e6',
@@ -85,7 +74,7 @@ function renderSummary() {
                 <li>1. วัดทิศหน้าบ้าน</li><li>2. ใส่ปีที่สร้างบ้าน</li><li>3. ดูผลและวิธีแก้</li>
             </ol>
             <p class="text-[12px] text-slate-400 mt-3">เริ่มที่ "ข้อมูลบ้าน" ด้านล่าง</p></section>
-            <a href="index.html?full=1" class="card p-3 flex items-center gap-3" style="border-color:#a16207"><span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ใช้วัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
+            <a href="compass.html" class="card p-3 flex items-center gap-3" style="border-color:#a16207"><span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ใช้วัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
         $('setup').open = true;
         return;
     }
@@ -101,7 +90,7 @@ function renderSummary() {
             <ul class="mt-2 space-y-1">${s.reasons.map(r => `<li class="flex gap-2"><span class="${r.ok ? 'text-emerald-400' : 'text-rose-400'} font-bold">${r.ok ? '✓' : '✗'}</span><span>${esc(r.t)}${cn(r.cn)}</span></li>`).join('')}</ul>
             ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}</details>
     </section>
-    <a href="index.html?full=1" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#a16207">
+    <a href="compass.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#a16207">
         <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
     // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
     const RING = [1, 2, 5, 8, 7, 6, 3, 0];
@@ -191,3 +180,5 @@ function initSetup() {
 renderModeSwitch();
 initSetup();
 renderSummary();
+// มาจากหล่อแกแบบง่ายหลังบันทึกทิศ: เปิดฟอร์มให้ใส่ปีที่สร้าง
+if (location.hash === '#setup') { $('setup').open = true; setTimeout(() => { $('setup').scrollIntoView({ block: 'center' }); $('inYear').focus(); }, 300); }

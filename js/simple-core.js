@@ -125,3 +125,20 @@ function houseSummary(facing, period, year, kua) {
     }
     return { ch, C, annual, year, stars, rating: SIMPLE_RATING[Math.floor(stars)], raw, reasons, pals, goods, bads, yearBad: yearBad.filter(x => x.p >= 0), yearGood, person, line };
 }
+
+// สถานะของวังสำหรับระบายสี: good / bad / mid และป้ายสั้น (ใช้ทั้งหน้าบ้านของฉันและหล่อแกแบบง่าย)
+function simplePalState(x) {
+    if (x.bad.some(b => b.short !== 'พลังอ่อน')) return 'bad';
+    return x.good ? 'good' : 'mid';
+}
+function simplePalLabel(x, st) {
+    return st === 'good' ? x.good.short : st === 'bad' ? x.bad.find(b => b.short !== 'พลังอ่อน').short : (x.bad[0] ? x.bad[0].short : 'ปกติ');
+}
+// เลข Kua ของเจ้าของบ้านจากข้อมูลที่บันทึกไว้ (ไม่มีวันเกิด = 0)
+function simpleOwnerKua() {
+    let b = null, g = 'M';
+    try { b = localStorage.getItem('luopan_birthDate'); g = localStorage.getItem('luopan_gender') || 'M'; } catch (e) {}
+    if (!b) return 0;
+    const d = new Date(b);
+    return isNaN(d) ? 0 : personKuaOf(getExactPillars(d).solarYear, g);
+}
