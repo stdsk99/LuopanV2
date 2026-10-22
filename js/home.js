@@ -94,6 +94,8 @@ function renderSummary() {
         <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>
     <a href="furniture.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#065f46">
         <span class="text-3xl">🪑</span><span class="flex-1"><b class="text-emerald-300">ตรวจทิศเฟอร์นิเจอร์</b><span class="block text-[12px] text-slate-400">หัวเตียง โต๊ะ เตา ประตู หิ้งพระ หันถูกทิศไหม ควรหมุนไปทางไหน</span></span><span class="text-emerald-400">›</span></a>
+    <a href="room.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#7c2d12">
+        <span class="text-3xl">🚪</span><span class="flex-1"><b class="text-orange-300">ผังรายห้อง</b><span class="block text-[12px] text-slate-400">ในห้องนอน/ห้องทำงาน มุมไหนวางเตียง โต๊ะ น้ำ หรือของแก้ (เหมาะกับคอนโด)</span></span><span class="text-orange-400">›</span></a>
     <a href="water.html" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#1e40af">
         <span class="text-3xl">💧</span><span class="flex-1"><b class="text-sky-300">จุดวางน้ำและประตู</b><span class="block text-[12px] text-slate-400">ทิศไหนควรมีน้ำ ประตูรอง ทางเดิน · ทิศไหนควรสูงทึบ · ประตูเมือง 城門</span></span><span class="text-sky-400">›</span></a>`;
     // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
