@@ -84,7 +84,8 @@ function renderSummary() {
             <ol class="text-[13px] text-slate-300 mt-3 space-y-1 text-left inline-block">
                 <li>1. วัดทิศหน้าบ้าน</li><li>2. ใส่ปีที่สร้างบ้าน</li><li>3. ดูผลและวิธีแก้</li>
             </ol>
-            <p class="text-[12px] text-slate-400 mt-3">เริ่มที่ "ข้อมูลบ้าน" ด้านล่าง</p></section>`;
+            <p class="text-[12px] text-slate-400 mt-3">เริ่มที่ "ข้อมูลบ้าน" ด้านล่าง</p></section>
+            <a href="index.html?full=1" class="card p-3 flex items-center gap-3" style="border-color:#a16207"><span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ใช้วัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
         $('setup').open = true;
         return;
     }
@@ -99,7 +100,9 @@ function renderSummary() {
         <details class="mt-2 text-[13px]"><summary class="cursor-pointer text-sky-300 text-[12px]">ทำไมได้ ${s.stars} ดาว</summary>
             <ul class="mt-2 space-y-1">${s.reasons.map(r => `<li class="flex gap-2"><span class="${r.ok ? 'text-emerald-400' : 'text-rose-400'} font-bold">${r.ok ? '✓' : '✗'}</span><span>${esc(r.t)}${cn(r.cn)}</span></li>`).join('')}</ul>
             ${ch.ti ? `<p class="text-[11px] text-slate-500 mt-2">ใช้ผังทดแทน${cn('替卦')} ตามตัวเลือก</p>` : ''}</details>
-    </section>`;
+    </section>
+    <a href="index.html?full=1" class="card p-3 flex items-center gap-3 hover:border-yellow-600" style="border-color:#a16207">
+        <span class="text-3xl">🧭</span><span class="flex-1"><b class="text-yellow-300">เปิดหล่อแก</b><span class="block text-[12px] text-slate-400">เข็มทิศ 3 มิติ ดูทิศรอบบ้านและวัดทิศหน้าบ้าน</span></span><span class="text-yellow-400">›</span></a>`;
     // ---------- 2. ผังบ้าน 9 ช่อง (หน้าบ้านอยู่ด้านบน) ----------
     const RING = [1, 2, 5, 8, 7, 6, 3, 0];
     const cellPal = new Array(9).fill('C');
