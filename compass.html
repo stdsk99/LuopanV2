@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>หล่อแกแบบง่าย - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lunar-javascript/1.6.12/lunar.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-4";</script>
+    <script src="js/version-check.js?v=2026.10.22-4"></script>
+    <script src="js/mode.js?v=2026.10.22-4"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .cn { font-family: 'STKaiti', 'KaiTi', 'Noto Serif TC', 'Songti TC', serif; }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; }
+        a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+        #dialWrap { position: relative; width: min(92vw, 420px); aspect-ratio: 1; margin: 0 auto; }
+        #dial { width: 100%; height: 100%; display: block; }
+        #needle { position: absolute; left: 50%; top: -4px; transform: translateX(-50%); width: 0; height: 0;
+                  border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 22px solid #ef4444; filter: drop-shadow(0 2px 2px #0008); }
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center gap-2">
+            <a href="home.html" class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← บ้านของฉัน</a>
+            <h1 class="text-lg font-bold text-yellow-400 flex-1">🧭 หล่อแก</h1>
+            <a href="index.html?full=1" class="text-[11px] text-slate-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">แบบเต็ม 3 มิติ</a>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto p-3 space-y-3 pb-10">
+        <!-- ค่าที่อ่านได้ -->
+        <section class="card p-4 text-center" aria-live="polite">
+            <div id="deg" class="text-5xl font-bold text-yellow-300 tabular-nums">—</div>
+            <div id="dirTxt" class="text-[17px] font-semibold text-white mt-1">กด "เริ่มเข็มทิศ" ด้านล่าง</div>
+            <div id="mtTxt" class="text-[13px] text-slate-400 mt-0.5"></div>
+            <div id="warnTxt" class="text-[13px] mt-2 hidden"></div>
+            <div id="palTxt" class="text-[14px] mt-2 hidden"></div>
+        </section>
+
+        <!-- จาน: หมุนตามเครื่อง ด้านบนจอ = ทิศที่หัวเครื่องชี้ -->
+        <div id="dialWrap"><svg id="dial" viewBox="-200 -200 400 400" role="img" aria-label="จานหล่อแก 8 ทิศ 24 ภูเขา"></svg><div id="needle"></div></div>
+
+        <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="startBtn" class="rounded-xl py-3 font-bold" style="background:#4f46e5;color:#fff">▶ เริ่มเข็มทิศ</button>
+            <button type="button" id="saveBtn" class="rounded-xl py-3 font-bold" style="background:#eab308;color:#0f172a">📍 บันทึกเป็นทิศหน้าบ้าน</button>
+        </div>
+        <p id="msg" class="text-[13px] text-emerald-300 min-h-[1em] text-center" role="status"></p>
+
+        <details class="card p-4 text-[13px]">
+            <summary class="cursor-pointer text-sky-300">ไม่มีเซนเซอร์ หรือจะใส่องศาเอง</summary>
+            <input type="range" id="manual" min="0" max="359.5" step="0.5" value="0" class="w-full mt-3" aria-label="ปรับองศาเอง">
+            <p class="text-[12px] text-slate-400 mt-1">เลื่อนจนองศาตรงกับที่วัดได้ แล้วกดบันทึก</p>
+        </details>
+
+        <section class="card p-4 text-[13px] text-slate-300">
+            <h2 class="font-semibold text-white">วิธีวัดทิศหน้าบ้านให้แม่น</h2>
+            <ol class="list-decimal pl-5 mt-2 space-y-1">
+                <li>ยืนที่ประตูหน้าบ้าน หันหน้าออกนอกบ้าน</li>
+                <li>ถือมือถือแนวราบระดับเอว หัวเครื่องชี้ออกนอกบ้าน</li>
+                <li>อยู่ห่างประตูเหล็ก รถ และเครื่องใช้ไฟฟ้าอย่างน้อย 1 เมตร</li>
+                <li>รอตัวเลขนิ่ง แล้วกด "บันทึกเป็นทิศหน้าบ้าน"</li>
+            </ol>
+            <p class="text-[12px] text-slate-400 mt-2">วัดซ้ำ 2–3 จุดหน้าบ้าน ถ้าต่างกันมาก ลองวัด <a href="sun.html" class="text-sky-300 underline">จากเงาแดด</a> หรือ <a href="measure.html" class="text-sky-300 underline">จากแผนที่ดาวเทียม</a></p>
+        </section>
+    </main>
+
+    <script src="js/data.js?v=2026.10.22-4"></script>
+    <script src="js/calc.js?v=2026.10.22-4"></script>
+    <script src="js/magdec.js?v=2026.10.22-4"></script>
+    <script src="js/fs-core.js?v=2026.10.22-4"></script>
+    <script src="js/fs-pairs.js?v=2026.10.22-4"></script>
+    <script src="js/person-core.js?v=2026.10.22-4"></script>
+    <script src="js/remedy-core.js?v=2026.10.22-4"></script>
+    <script src="js/simple-core.js?v=2026.10.22-4"></script>
+    <script src="js/simple-compass.js?v=2026.10.22-4"></script>
+</body>
+</html>
