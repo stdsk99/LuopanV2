@@ -26,7 +26,7 @@ const starsHtml = (n) => {
     for (let i = 0; i < 5; i++) s += i < full ? '<span class="text-yellow-400">★</span>' : (i === full && half ? '<span class="star-half">★</span>' : '<span class="text-slate-700">★</span>');
     return `<div class="star" role="img" aria-label="${n} จาก 5 ดาว">${s}</div>`;
 };
-const remedyHtml = (rm) => rm ? `<span class="inline-flex flex-wrap gap-x-3 gap-y-1">${rm.items.map(it => `<span class="whitespace-nowrap">${iconHtml(it, 22)} ${it.l}</span>`).join('')}</span>${rm.note ? ` <span class="text-red-300 text-[11px]">(${rm.note})</span>` : ''}` : '';
+const remedyHtml = (rm) => rm ? `<span class="inline-flex flex-wrap gap-1.5 align-middle">${rm.items.map(it => remedyChip(it, 24)).join('')}</span>${rm.note ? ` <span class="text-red-300 text-[11px]">(${rm.note})</span>` : ''}` : '';
 const dirName = (p) => `${SIMPLE_PAL_TH[p]}${cn(SIMPLE_TRIGRAM[p])}`;
 
 // สถานะของแต่ละทิศสำหรับผังสี: good / bad / mid
