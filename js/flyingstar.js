@@ -36,6 +36,8 @@ function drawHouseDial(g) {
             drawSeg(rTicks * 0.93, rTicks, rb.water.a, rb.water.b, 'rgba(34,211,238,0.85)', 'transparent');
             drawSeg(rTicks * 0.93, rTicks, rb.dragon.a, rb.dragon.b, 'rgba(74,222,128,0.85)', 'transparent');
         }
+        // ประตูเมือง (城門) : แถบทองที่ขอบนอก
+        houseGates(ch).forEach(g => { const c = g.m * 15 - 15; drawSeg(rTicks * 0.88, rTicks * 0.93, c - 7.5, c + 7.5, 'rgba(250,204,21,0.9)', 'transparent'); });
     }
 
     // 8 วัง
@@ -167,7 +169,13 @@ function renderHousePanel() {
         ${pats}
         ${tiNote ? `<div class="mt-2 text-[10px] text-yellow-200">🔁 ${tiNote}</div>` : ''}
         ${warn ? `<div class="mt-2 text-[10px] text-amber-300">${warn}</div>` : ''}
+        ${houseGatesHtml(ch)}
         ${houseRobberyHtml(house.facing)}`;
+}
+// ประตูเมือง (城門訣)
+function houseGatesHtml(ch) {
+    const gs = houseGates(ch);
+    return `<div class="mt-2 rounded-lg px-2 py-1.5 text-[10px] md:text-[11px] border border-yellow-600 text-slate-200"><b>ประตูเมือง</b> <span class="cn-char">城門</span> <span class="text-yellow-300">■</span> ${gs.length ? gs.map(g => `ภูเขา <span class="cn-char">${HOUSE_M24[g.m]}</span> วัง${HOUSE_PALACE_SHORT[g.pal]} ${g.a.toFixed(1)}°–${g.b.toFixed(1)}°`).join(' · ') + ' · ประตูรอง/น้ำตรงนี้ดึงพลังยุคเข้าบ้าน' : 'ทิศนี้ในยุคนี้ไม่มีประตูเมืองที่ใช้ได้'} · <a href="water.html" class="text-sky-300 underline">จุดวางน้ำ</a></div>`;
 }
 // 7 ดาวขโมยโชค แบบ 64 ข่วย (สูตรตามแอป F07)
 function houseRobberyDir(x) {
