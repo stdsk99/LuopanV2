@@ -80,7 +80,7 @@ function render() {
       // ทับทิศอสูร: ของเสริมต้องไม่เคลื่อนไหว (เขียนกำกับใต้ภาพ)
       const still = Math.abs(((d - ssMid + 540) % 360) - 180) < 45;
       h += `<rect x="${cx - 34}" y="${cy - (still ? 74 : 66)}" width="68" height="${still ? 40 : 30}" rx="14" fill="#f8fafc" opacity="0.93" stroke="${still ? '#dc2626' : 'none'}" stroke-width="2"/>`;
-      h += iconSvg(rm.items[0], cx - 13, cy - (still ? 59 : 51), 22) + iconSvg(rm.items[1], cx + 13, cy - (still ? 59 : 51), 19);
+      h += iconSvg(rm.items[0], cx - 13, cy - (still ? 59 : 51), 22) + iconSvg(rm.items[1], cx + 13, cy - (still ? 59 : 51), 22);
       if (still) h += `<text x="${cx}" y="${cy - 40}" font-size="8.5" font-weight="700" fill="#dc2626" text-anchor="middle">ห้ามเคลื่อนไหว</text>`;
       h += `<text x="${cx}" y="${cy - 14}" font-size="38" fill="#fff" font-weight="900" text-anchor="middle" dominant-baseline="central">${n}</text>`;
       h += `<text x="${cx}" y="${cy + 16}" font-size="12" fill="#fff" font-weight="600" text-anchor="middle" class="cn">${s.name} · ${s.el}</text>`;
@@ -134,7 +134,7 @@ function render() {
         <div class="rounded-lg text-center py-1" style="background:${r.s.col}"><div class="text-[24px] font-black leading-none text-white">${r.n}</div><div class="text-[10px] text-white">${r.s.el}</div></div>
         <div class="min-w-0"><div class="flex flex-wrap items-center gap-1.5 text-[13px]"><b>${PAL_TH[r.p]}</b><span class="text-[11px] px-2 rounded-full ${r.s.good ? 'bg-emerald-800 text-emerald-100' : 'bg-red-800 text-red-100'}">${r.s.good ? 'ดี' : 'ระวัง'}</span>${tags.join('')}</div>
         <div class="text-[12px] text-slate-300">${r.s.t}${r.n === PERIOD ? ` (ดาวรุ่งยุค ${PERIOD})` : ''}</div>
-        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-sky-200"><span class="text-slate-400">ทิศ${PAL_ZHI[r.p].map(z => ZHI_TH[z]).join('-')}:</span>${REMEDY[r.n].items.map(it => `<span class="inline-flex items-center gap-1 bg-slate-800 rounded-full pl-1 pr-2 py-0.5">${iconHtml(it, 20)} ${it.l}</span>`).join('')}<span class="text-sky-300">${REMEDY[r.n].p}</span>${(Math.abs(((r.i * 45 - ssMid + 540) % 360) - 180) < 45) ? '<span class="text-red-300">· ไม่เคลื่อนไหว เพราะทับทิศอสูร</span>' : (REMEDY[r.n].note ? `<span class="text-red-300">· ${REMEDY[r.n].note}</span>` : '')}</div></div></div>`;
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[11.5px] text-sky-200"><span class="text-slate-400">ทิศ${PAL_ZHI[r.p].map(z => ZHI_TH[z]).join('-')}:</span>${REMEDY[r.n].items.map(it => remedyChip(it, 22)).join('')}<span class="text-sky-300">${REMEDY[r.n].p}</span>${(Math.abs(((r.i * 45 - ssMid + 540) % 360) - 180) < 45) ? '<span class="text-red-300">· ไม่เคลื่อนไหว เพราะทับทิศอสูร</span>' : (REMEDY[r.n].note ? `<span class="text-red-300">· ${REMEDY[r.n].note}</span>` : '')}</div></div></div>`;
     }).join('');
 
 }

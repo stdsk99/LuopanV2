@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>คลังวิธีแก้ - Luopan 3D Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เลขเวอร์ชัน: เปลี่ยนให้ตรงกับ version.json ทุกครั้งที่อัปเดต (ดู CLAUDE.md) -->
+    <script>window.APP_VERSION = "2026.10.22-5";</script>
+    <script src="js/version-check.js?v=2026.10.22-5"></script>
+    <script src="js/mode.js?v=2026.10.22-5"></script>
+    <style>
+        body { font-family: 'Prompt', sans-serif; background: #020617; color: #e2e8f0; margin: 0;
+               padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+        .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; }
+        .item { transition: transform .15s ease, border-color .15s ease; }
+        .item:hover { transform: translateY(-2px); border-color: #a16207; }
+        .seg button { padding: 7px 14px; font-size: 13px; border-radius: 999px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+        .seg button[aria-pressed="true"] { background: #eab308; color: #0f172a; border-color: #eab308; font-weight: 600; }
+        a:focus-visible, button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) { .item { transition: none; } .item:hover { transform: none; } }
+    </style>
+</head>
+<body>
+    <header class="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800" style="padding-top: env(safe-area-inset-top, 0px)">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-2">
+            <a href="index.html" data-back class="text-[12px] text-sky-300 border border-slate-700 rounded-full px-3 py-1 hover:bg-slate-800">← เข็มทิศ</a>
+            <h1 class="text-lg font-bold text-yellow-400">🧰 คลังวิธีแก้</h1>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-3 space-y-4 pb-12">
+        <p class="text-[13px] text-slate-400 px-1">ของเสริมโชคและของแก้ร้ายตามหลักดาวเหิน แตะรูปเพื่อดูว่าใช้ทำอะไร วางตรงไหน และข้อห้าม</p>
+
+        <section class="card p-4" aria-labelledby="hByStar">
+            <h2 id="hByStar" class="font-bold text-yellow-300">🔎 ปัญหาอะไร ใช้อะไร</h2>
+            <div id="byStar" class="mt-3 space-y-2"></div>
+        </section>
+
+        <section aria-labelledby="hAll">
+            <div class="flex flex-wrap items-center gap-2 px-1">
+                <h2 id="hAll" class="font-bold text-white mr-auto">ของทั้งหมด</h2>
+                <div class="seg flex gap-1.5" role="group" aria-label="กรอง">
+                    <button type="button" data-f="all" aria-pressed="true">ทั้งหมด</button>
+                    <button type="button" data-f="boost" aria-pressed="false">✨ เสริมโชค</button>
+                    <button type="button" data-f="fix" aria-pressed="false">🛡️ ลดร้าย</button>
+                </div>
+            </div>
+            <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3"></div>
+        </section>
+        <p class="text-[11px] text-slate-500 px-1">คำแนะนำเรียบเรียงจากหลักฮวงจุ้ยทั่วไป ใช้ประกอบการตัดสินใจ · ภาพเป็นภาพประกอบ ของจริงเลือกแบบที่ชอบได้</p>
+    </main>
+
+    <script src="js/remedy-core.js?v=2026.10.22-5"></script>
+    <script src="js/remedy-ui.js?v=2026.10.22-5"></script>
+    <script>
+        // ตารางดาว → ของที่ใช้ และการ์ดของทั้งหมด
+        const STAR_GOOD = { 1: true, 4: true, 6: true, 8: true, 9: true };
+        document.getElementById('byStar').innerHTML = [5, 2, 3, 7, 8, 1, 9, 4, 6].map(n => {
+            const rm = REMEDY[n];
+            return `<div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl bg-slate-950/60 border border-slate-800 p-2.5">
+                <span class="w-[118px] shrink-0 text-[13px]"><b class="${STAR_GOOD[n] ? 'text-emerald-300' : 'text-rose-300'}">${STAR_GOOD[n] ? 'เสริม' : 'แก้'}${STAR_TOPIC[n]}</b><span class="block text-[11px] text-slate-500">ดาว ${n}${rm.note ? ' · ' + rm.note : ''}</span></span>
+                <span class="flex flex-wrap gap-1.5">${rm.items.map(it => remedyChip(it, 26)).join('')}</span></div>`;
+        }).join('');
+        function renderGrid(f) {
+            document.getElementById('grid').innerHTML = Object.keys(REMEDY_LIB).filter(id => f === 'all' || REMEDY_LIB[id].k === f).map(id => {
+                const r = REMEDY_LIB[id], c = REMEDY_EL[r.el];
+                return `<button type="button" data-remedy="${id}" class="item card p-3 text-left flex flex-col items-center">
+                    <svg width="92" height="92" viewBox="0 0 64 64" aria-hidden="true" style="filter:drop-shadow(0 6px 12px ${c.ring}40)">${remedyArt(id)}</svg>
+                    <b class="mt-2 text-[14px] text-white text-center leading-tight">${r.l}</b>
+                    <span class="mt-1 text-[11.5px] text-slate-400 text-center leading-snug">${r.for}</span>
+                    <span class="mt-2 text-[11px] px-2 py-0.5 rounded-full" style="${c.chip}">ธาตุ${r.el}</span></button>`;
+            }).join('');
+        }
+        document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+            document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+            renderGrid(b.dataset.f);
+        }));
+        renderGrid('all');
+    </script>
+</body>
+</html>
